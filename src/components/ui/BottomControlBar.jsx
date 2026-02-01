@@ -51,8 +51,8 @@ export const BottomControlBar = ({
         
         <div className="relative flex items-center bg-black/90 backdrop-blur-xl rounded-full border border-white/10 p-2 shadow-2xl">
           
-          {/* Focus Toggle (Left) */}
-          <div className="flex items-center pr-2 border-r border-white/10 mr-2">
+          {/* Left Controls (Focus Only) */}
+          <div className="flex items-center pr-2 border-r border-white/10 mr-2 gap-1">
              <button 
                 onClick={onToggleFocus}
                 className={`p-3 rounded-full transition-all ${isFocused ? 'text-cyan-400 bg-white/10' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}

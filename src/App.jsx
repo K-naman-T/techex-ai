@@ -3,8 +3,9 @@ import { Canvas } from '@react-three/fiber';
 import { Experience } from './components/3d/Experience';
 import { BottomControlBar } from './components/ui/BottomControlBar';
 import { FloatingChat } from './components/ui/FloatingChat';
-import { useGoogleCloudAudio } from './hooks/useGoogleCloudAudio';
+import { useTTS } from './hooks/useTTS'; 
 import { getGeminiResponse } from './lib/gemini';
+import { MessageSquare, X, Mic, StopCircle, Settings } from 'lucide-react';
 
 const SUGGESTIONS = [
   "What is the Kalinganagar project?",
@@ -17,8 +18,10 @@ function App() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [isChatFocused, setIsChatFocused] = useState(false); // New Focus State
-  const { speak, stop, isSpeaking } = useGoogleCloudAudio();
+  const [isChatFocused, setIsChatFocused] = useState(false); // Default: Bubbles HIDDEN
+  const [showSettings, setShowSettings] = useState(false); 
+  
+  const { speak, stop, isSpeaking, provider, setProvider } = useTTS();
 
   const handleSend = async (text = input) => {
     if (!text.trim() || loading) return;
@@ -37,8 +40,10 @@ function App() {
       const aiMsg = { role: 'ai', content: responseText };
       setMessages(prev => [...prev, aiMsg]);
 
-      // Speak
-      speak(responseText);
+      // Speak ONLY if Chat is NOT focused (Immersive Mode)
+      if (!isChatFocused) {
+          speak(responseText);
+      }
     } catch (error) {
       console.error("Error processing request:", error);
       setMessages(prev => [...prev, { role: 'ai', content: "I'm having trouble connecting to the network." }]);
@@ -62,14 +67,14 @@ function App() {
         </Canvas>
       </div>
 
-      {/* FOCUS OVERLAY (Blur & Darken) */}
+      {/* FOCUS OVERLAY */}
       <div 
         className={`absolute inset-0 z-10 bg-black/60 backdrop-blur-xl transition-all duration-700 ease-in-out pointer-events-none ${isChatFocused ? 'opacity-100' : 'opacity-0'}`}
       />
 
-      {/* HEADER (Always Visible, Z-Index High) */}
+      {/* HEADER */}
       <div className="absolute top-0 left-0 w-full p-8 flex justify-between items-start pointer-events-none z-50">
-        <div>
+        <div className="pointer-events-auto">
           <h1 className="text-3xl font-bold font-mono tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">
             TECHEX <span className="text-cyan-400">2026</span>
           </h1>
@@ -81,10 +86,54 @@ function App() {
             <span className="text-xs text-gray-500 font-mono tracking-widest uppercase">SYS ONLINE</span>
           </div>
         </div>
+
+        {/* TOP RIGHT CONTROLS */}
+        <div className="pointer-events-auto flex gap-3 relative">
+            {isSpeaking && (
+                <button 
+                    onClick={(e) => { e.stopPropagation(); stop(); }}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-500/80 border border-red-500/50 text-white rounded-full hover:bg-red-600 transition-all backdrop-blur-md shadow-[0_0_15px_rgba(239,68,68,0.5)] animate-in fade-in zoom-in duration-300"
+                >
+                    <StopCircle size={20} className="animate-pulse" />
+                    <span className="font-mono text-sm font-bold">STOP</span>
+                </button>
+            )}
+
+            <button 
+                onClick={() => setShowSettings(!showSettings)}
+                className={`h-10 w-10 rounded-full border flex items-center justify-center backdrop-blur-md transition-all ${showSettings ? 'bg-white/10 border-white/30 text-white' : 'bg-black/20 border-white/10 text-gray-400 hover:text-white hover:bg-white/5'}`}
+            >
+                <Settings size={20} />
+            </button>
+
+            {showSettings && (
+                <div className="absolute top-12 right-0 bg-black/90 border border-white/10 rounded-xl p-4 min-w-[220px] backdrop-blur-xl shadow-2xl animate-in slide-in-from-top-2 fade-in z-50">
+                   <h3 className="text-[10px] font-mono text-gray-500 mb-3 uppercase tracking-widest">Voice Engine</h3>
+                   <div className="flex flex-col gap-1">
+                      {[
+                        { id: 'google', label: 'Google Neural2', desc: 'Standard' },
+                        { id: 'elevenlabs', label: 'ElevenLabs', desc: 'Krishna Gupta (Custom)' },
+                        { id: 'sarvam', label: 'Sarvam AI', desc: 'Indian Context' }
+                      ].map((opt) => (
+                         <button 
+                           key={opt.id}
+                           onClick={() => { setProvider(opt.id); setShowSettings(false); }}
+                           className={`text-left px-3 py-2.5 rounded-lg transition-all group ${provider === opt.id ? 'bg-cyan-500/10 border border-cyan-500/30' : 'hover:bg-white/5 border border-transparent'}`}
+                         >
+                           <div className={`text-sm font-medium ${provider === opt.id ? 'text-cyan-400' : 'text-gray-200 group-hover:text-white'}`}>
+                              {opt.label}
+                           </div>
+                           <div className="text-[10px] text-gray-500 mt-0.5">{opt.desc}</div>
+                         </button>
+                      ))}
+                   </div>
+                </div>
+            )}
+        </div>
       </div>
 
-      {/* FLOATING CHAT LAYER (Expanded in Focus Mode) */}
-      <div className={`absolute inset-0 z-30 transition-all duration-500 ${isChatFocused ? 'pt-24' : ''}`}>
+      {/* FLOATING CHAT LAYER (Hidden by default, Only visible when Focused) */}
+      <div className={`absolute inset-0 z-30 transition-all duration-500 ${isChatFocused ? 'pt-24 opacity-100' : 'opacity-0 pointer-events-none'}`}>
          <FloatingChat messages={messages} loading={loading} isFocused={isChatFocused} />
       </div>
 

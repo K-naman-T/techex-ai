@@ -1,11 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 
-export const useGoogleCloudAudio = () => {
+export const useTTS = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [provider, setProvider] = useState('sarvam'); // 'sarvam' | 'google' | 'elevenlabs'
   const audioContextRef = useRef(null);
   const sourceNodeRef = useRef(null);
 
-  // Initialize Audio Context on user interaction (lazy load)
   const getAudioContext = () => {
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
@@ -18,41 +18,31 @@ export const useGoogleCloudAudio = () => {
 
   const stop = useCallback(() => {
     if (sourceNodeRef.current) {
-      try {
-        sourceNodeRef.current.stop();
-      } catch (e) {
-        // ignore if already stopped
-      }
+      try { sourceNodeRef.current.stop(); } catch (e) {}
       sourceNodeRef.current = null;
     }
     setIsSpeaking(false);
   }, []);
 
   const speak = useCallback(async (text) => {
-    stop(); // Stop previous
-
+    stop();
     if (!text) return;
 
     try {
-      // 1. Fetch Audio from Backend
-      // Using direct port 3001 if proxy isn't perfect, or relative /api if proxy works.
-      // Based on vite.config.js, /api is proxied to 3001.
       const response = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, provider }), // Send selected provider
       });
 
       if (!response.ok) {
-        const err = await response.json();
-        console.error("TTS Backend Error:", err);
+        console.error("TTS Backend Error");
         return;
       }
 
       const data = await response.json();
-      const audioContent = data.audioContent; // Base64 string
+      const audioContent = data.audioContent;
 
-      // 2. Decode Base64
       const binaryString = window.atob(audioContent);
       const len = binaryString.length;
       const bytes = new Uint8Array(len);
@@ -60,7 +50,6 @@ export const useGoogleCloudAudio = () => {
         bytes[i] = binaryString.charCodeAt(i);
       }
 
-      // 3. Play Audio via Web Audio API
       const ctx = getAudioContext();
       const audioBuffer = await ctx.decodeAudioData(bytes.buffer);
 
@@ -68,9 +57,7 @@ export const useGoogleCloudAudio = () => {
       source.buffer = audioBuffer;
       source.connect(ctx.destination);
 
-      source.onended = () => {
-        setIsSpeaking(false);
-      };
+      source.onended = () => setIsSpeaking(false);
 
       sourceNodeRef.current = source;
       source.start(0);
@@ -80,17 +67,14 @@ export const useGoogleCloudAudio = () => {
       console.error("Audio Playback Error:", error);
       setIsSpeaking(false);
     }
-  }, [stop]);
+  }, [stop, provider]);
 
-  // Cleanup
   useEffect(() => {
     return () => {
       stop();
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-      }
+      if (audioContextRef.current) audioContextRef.current.close();
     };
   }, [stop]);
 
-  return { speak, stop, isSpeaking };
+  return { speak, stop, isSpeaking, provider, setProvider };
 };
