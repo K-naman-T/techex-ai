@@ -161,7 +161,7 @@ const server = serve({
                     inputs: [text],
                     target_language_code: "hi-IN", 
                     speaker: "amit",
-                    pace: 1.0,
+                    pace: 0.95, // Optimized for clarity in kiosk environment
                     model: "bulbul:v3-beta"
                 })
             });
