@@ -2,12 +2,12 @@
   "name": "techex-ai",
   "version": "1.0.0",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"bun run server.ts\" \"bun run dev:client\"",
+    "dev:client": "vite --host",
     "build": "vite build",
     "preview": "vite preview",
     "start": "bun run server.ts",
     "seed": "bun run src/db/seed.js",
-    "dev:all": "bun run --parallel start dev",
     "test": "bun test"
   },
   "dependencies": {
@@ -27,22 +27,28 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "framer-motion": "^12.29.2",
+    "jsonwebtoken": "^9.0.3",
+    "kill-port": "^2.0.1",
+    "killport": "^1.0.2",
     "lucide-react": "^0.563.0",
     "microsoft-cognitiveservices-speech-sdk": "^1.47.0",
     "postcss": "^8.5.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.13.0",
     "styled-components": "^6.3.8",
     "tailwindcss": "^4.1.18",
     "three": "^0.182.0",
     "zustand": "^5.0.10"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/react": "^19.2.10",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.2",
     "bun-types": "^1.2.1",
+    "concurrently": "^9.2.1",
     "vite": "^7.3.1"
   }
 }

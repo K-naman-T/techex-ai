@@ -1,19 +1,84 @@
 import { serve } from "bun";
+import { Database } from "bun:sqlite";
+import jwt from "jsonwebtoken";
 import fs from "node:fs";
 import path from "node:path";
 import { Buffer } from "node:buffer";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { TextToSpeechClient } from "@google-cloud/text-to-speech";
 
 // Credentials
-process.env.GOOGLE_APPLICATION_CREDENTIALS = path.join(process.cwd(), "google-credentials.json");
+const CREDENTIALS_PATH = path.join(import.meta.dir, "google-credentials.json");
+
+if (!fs.existsSync(CREDENTIALS_PATH)) {
+  console.error("Error: google-credentials.json not found!");
+  process.exit(1);
+}
+
+process.env.GOOGLE_APPLICATION_CREDENTIALS = CREDENTIALS_PATH;
+
 const DB_PATH = path.join(process.cwd(), "data", "db.json");
-const API_KEY = process.env.VITE_GEMINI_API_KEY || "";
+const API_KEY = process.env.VITE_GEMINI_API_KEY;
+if (!API_KEY) {
+  console.error("Error: VITE_GEMINI_API_KEY is missing in .env");
+  process.exit(1);
+} else {
+  console.log(`[INIT] Gemini API Key found: ${API_KEY.substring(0, 4)}...${API_KEY.substring(API_KEY.length - 4)}`);
+}
 const ELEVENLABS_API_KEY = process.env.VITE_ELEVENLABS_API_KEY || "";
 const SARVAM_API_KEY = process.env.VITE_SARVAM_API_KEY || "";
+const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-change-this";
+
+// --- Database Setup (SQLite) ---
+const db = new Database("techex.sqlite");
+db.run("PRAGMA foreign_keys = ON;");
+
+// Initialize Schema
+db.run(`
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    name TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+db.run(`
+  CREATE TABLE IF NOT EXISTS conversations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    title TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+`);
+
+db.run(`
+  CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER,
+    role TEXT, -- 'user' or 'ai'
+    content TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+  );
+`);
+
+db.run(`
+  CREATE TABLE IF NOT EXISTS user_configs (
+    user_id INTEGER PRIMARY KEY,
+    voice_provider TEXT DEFAULT 'elevenlabs',
+    voice_id TEXT,
+    stt_language TEXT DEFAULT 'en-IN',
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+`);
+
+console.log("[DB] SQLite Database initialized.");
 
 const ttsClient = new TextToSpeechClient();
-const genAI = new GoogleGenAI({ apiKey: API_KEY });
+const genAI = new GoogleGenerativeAI(API_KEY);
 
 // --- RAG: Vector Store Implementation ---
 class LocalVectorStore {
@@ -23,15 +88,19 @@ class LocalVectorStore {
   constructor() { }
 
   similarity(vecA: number[], vecB: number[]) {
+    if (!vecA || !vecB || vecA.length === 0 || vecA.length !== vecB.length) return 0;
     let dot = 0;
     let normA = 0;
     let normB = 0;
     for (let i = 0; i < vecA.length; i++) {
-      dot += vecA[i] * vecB[i];
-      normA += vecA[i] * vecA[i];
-      normB += vecB[i] * vecB[i];
+      const a = vecA[i] ?? 0;
+      const b = vecB[i] ?? 0;
+      dot += a * b;
+      normA += a * a;
+      normB += b * b;
     }
-    return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+    const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
+    return magnitude === 0 ? 0 : dot / magnitude;
   }
 
   async addDocuments(docs: any[]) {
@@ -41,11 +110,10 @@ class LocalVectorStore {
     for (const doc of docs) {
       const textToEmbed = `Title: ${doc.title}. Category: ${doc.category}. Description: ${doc.description}. Keywords: ${doc.team_name}`;
       try {
-        const response = await genAI.models.embedContent({
-          model: "text-embedding-004",
-          contents: [{ parts: [{ text: textToEmbed }] }]
-        });
-        const embedding = response.embeddings?.[0]?.values || response.embedding?.values;
+        const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
+        const result = await model.embedContent(textToEmbed);
+        const embedding = result.embedding.values;
+
         if (embedding) {
           this.embeddings.push(embedding);
         } else {
@@ -56,21 +124,23 @@ class LocalVectorStore {
         console.error("[RAG] Embedding Error:", e);
         this.embeddings.push([]);
       }
+      // Small delay to avoid rate limits on startup
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
     console.log(`[RAG] Indexing complete.`);
   }
 
   async search(query: string, topK: number = 3) {
     try {
-      const response = await genAI.models.embedContent({
-        model: "text-embedding-004",
-        contents: [{ parts: [{ text: query }] }]
-      });
-      const queryVec = response.embeddings?.[0]?.values || response.embedding?.values;
+      const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
+      const result = await model.embedContent(query);
+      const queryEmbedding = result.embedding.values;
+
+      if (!queryEmbedding) return [];
 
       const scores = this.embeddings.map((emb, idx) => ({
         index: idx,
-        score: this.similarity(queryVec, emb)
+        score: this.similarity(queryEmbedding, emb)
       }));
 
       scores.sort((a, b) => b.score - a.score);
@@ -94,27 +164,167 @@ const initKnowledgeBase = async () => {
   await vectorStore.addDocuments(projects);
 };
 
-initKnowledgeBase();
+// Initialize RAG and then start server
+await initKnowledgeBase();
 
 const server = serve({
-  port: 3001,
+  port: 3005,
   async fetch(req) {
     const url = new URL(req.url);
 
     const headers = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type"
+      "Access-Control-Allow-Headers": "Content-Type, Authorization"
     };
 
     if (req.method === "OPTIONS") {
       return new Response(null, { headers });
     }
 
+    // --- API: Auth (Signup) ---
+    if (url.pathname === "/api/auth/signup" && req.method === "POST") {
+      try {
+        let { email, password, name } = await req.json() as any;
+        if (!email || !password) return new Response(JSON.stringify({ error: "Email and password required" }), { status: 400, headers });
+
+        email = email.toLowerCase().trim();
+        const passwordHash = await Bun.password.hash(password);
+
+        try {
+          const insert = db.prepare("INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)");
+          insert.run(email, passwordHash, name || "User");
+          console.log(`[SIGNUP] Success: ${email}`);
+          return new Response(JSON.stringify({ message: "User created" }), { status: 201, headers });
+        } catch (e: any) {
+          if (e.message.includes("UNIQUE constraint failed")) {
+            return new Response(JSON.stringify({ error: "Email already exists" }), { status: 409, headers });
+          }
+          throw e;
+        }
+      } catch (error) {
+        console.error("[SIGNUP] Error:", error);
+        return new Response(JSON.stringify({ error: "Signup failed" }), { status: 500, headers });
+      }
+    }
+
+    // --- API: Auth (Login) ---
+    if (url.pathname === "/api/auth/login" && req.method === "POST") {
+      try {
+        let { email, password } = await req.json() as any;
+        email = email.toLowerCase().trim();
+
+        console.log(`[LOGIN] Attempt: ${email}`);
+        const user = db.query("SELECT * FROM users WHERE email = ?").get(email) as any;
+
+        if (!user) {
+          console.warn(`[LOGIN] Not Found: ${email}`);
+          return new Response(JSON.stringify({ error: "No user found with this email" }), { status: 401, headers });
+        }
+
+        const isMatch = await Bun.password.verify(password, user.password_hash);
+        if (!isMatch) {
+          console.warn(`[LOGIN] Wrong Password: ${email}`);
+          return new Response(JSON.stringify({ error: "Incorrect password" }), { status: 401, headers });
+        }
+
+        console.log(`[LOGIN] Success: ${email}`);
+        const token = jwt.sign({ id: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: "7d" });
+
+        // Fetch User Config
+        const config = db.query("SELECT * FROM user_configs WHERE user_id = ?").get(user.id) || {};
+
+        return new Response(JSON.stringify({ token, user: { id: user.id, name: user.name, email: user.email }, config }), { headers });
+      } catch (error) {
+        console.error("[LOGIN] Error:", error);
+        return new Response(JSON.stringify({ error: "Internal server error during login" }), { status: 500, headers });
+      }
+    }
+
+    // --- API: User Config (Get/Update) ---
+    if (url.pathname === "/api/user/config" && req.method === "POST") {
+      try {
+        // Authenticate
+        const authHeader = req.headers.get("Authorization");
+        if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
+        const token = authHeader.split(" ")[1];
+        const decoded = jwt.verify(token, JWT_SECRET as string) as any;
+        const userId = decoded.id;
+
+        const { voice_provider, voice_id, stt_language } = await req.json() as any;
+
+        // Upsert Config
+        const upsert = db.prepare(`
+          INSERT INTO user_configs (user_id, voice_provider, voice_id, stt_language)
+          VALUES (?, ?, ?, ?)
+          ON CONFLICT(user_id) DO UPDATE SET
+            voice_provider = excluded.voice_provider,
+            voice_id = excluded.voice_id,
+            stt_language = excluded.stt_language
+        `);
+
+        const current = db.query("SELECT * FROM user_configs WHERE user_id = ?").get(userId) as any || {};
+        upsert.run(
+          userId,
+          voice_provider || current.voice_provider || 'elevenlabs',
+          voice_id || current.voice_id,
+          stt_language || current.stt_language || 'en-IN'
+        );
+
+        return new Response(JSON.stringify({ message: "Config updated" }), { headers });
+      } catch (error) {
+        return new Response(JSON.stringify({ error: "Failed to update config" }), { status: 500, headers });
+      }
+    }
+
+    // --- API: Conversations (List/Create) ---
+    if (url.pathname === "/api/conversations" && req.method === "GET") {
+      try {
+        const authHeader = req.headers.get("Authorization");
+        if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
+
+        const token = authHeader.split(" ")[1];
+        const decoded = jwt.verify(token, JWT_SECRET as string) as any;
+        const userId = decoded.id;
+
+        const conversations = db.query("SELECT * FROM conversations WHERE user_id = ? ORDER BY created_at DESC").all(userId);
+        return new Response(JSON.stringify(conversations), { headers });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: "Failed to fetch conversations" }), { status: 500, headers });
+      }
+    }
+
+    if (url.pathname === "/api/conversations" && req.method === "POST") {
+      try {
+        const authHeader = req.headers.get("Authorization");
+        if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
+        const token = authHeader.split(" ")[1];
+        const decoded = jwt.verify(token, JWT_SECRET as string) as any;
+        const userId = decoded.id;
+
+        const { title } = await req.json() as any;
+        const insert = db.prepare("INSERT INTO conversations (user_id, title) VALUES (?, ?)");
+        const result = insert.run(userId, title || "New Chat");
+
+        return new Response(JSON.stringify({ id: result.lastInsertRowid, title: title || "New Chat" }), { headers });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: "Failed to create conversation" }), { status: 500, headers });
+      }
+    }
+
+    // --- API: Messages (Get) ---
+    if (url.pathname.startsWith("/api/messages") && req.method === "GET") {
+      const conversationId = url.searchParams.get("conversation_id");
+      if (!conversationId) return new Response(JSON.stringify({ error: "Missing conversation_id" }), { status: 400, headers });
+
+      const msgs = db.query("SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC").all(conversationId);
+      return new Response(JSON.stringify(msgs), { headers });
+    }
+
     // --- API: TTS (Multi-Provider) ---
     if (url.pathname === "/api/tts" && req.method === "POST") {
       try {
-        const { text, provider = 'sarvam' } = await req.json();
+        const { text, provider = 'elevenlabs' } = await req.json() as { text: string, provider?: string };
         if (!text) return new Response(JSON.stringify({ error: "Text missing" }), { status: 400, headers });
 
         let audioBuffer: Buffer;
@@ -122,7 +332,8 @@ const server = serve({
         if (provider === 'elevenlabs') {
           // ElevenLabs Logic
           if (!ELEVENLABS_API_KEY) throw new Error("ElevenLabs API Key missing");
-          const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "Sxk6njaoa7XLsAFT7WcN";
+          // "Adam" - Standard Free Tier Voice (American, but guaranteed to work)
+          const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "pNInz6obpgDQGcFmaJgB";
           const elevenUrl = `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`;
 
           const response = await fetch(elevenUrl, {
@@ -133,8 +344,12 @@ const server = serve({
             },
             body: JSON.stringify({
               text: text,
-              model_id: "eleven_multilingual_v2",
-              voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+              model_id: "eleven_turbo_v2_5",
+              voice_settings: {
+                stability: 0.5,
+                similarity_boost: 0.75,
+                speed: 1.1  // Slightly faster to reduce pauses between sentences
+              }
             })
           });
 
@@ -146,49 +361,37 @@ const server = serve({
           const arrayBuffer = await response.arrayBuffer();
           audioBuffer = Buffer.from(arrayBuffer);
 
-        } else if (provider === 'sarvam') {
-            // Sarvam AI Logic
-            if (!SARVAM_API_KEY) throw new Error("Sarvam API Key missing");
-
-            const sarvamUrl = "https://api.sarvam.ai/text-to-speech";
-            const response = await fetch(sarvamUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'api-subscription-key': SARVAM_API_KEY
-                },
-                body: JSON.stringify({
-                    inputs: [text],
-                    target_language_code: "hi-IN", 
-                    speaker: "amit",
-                    pace: 0.95, // Optimized for clarity in kiosk environment
-                    model: "bulbul:v3-beta"
-                })
-            });
-
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(`Sarvam Error: ${JSON.stringify(err)}`);
-            }
-
-            const data = await response.json();
-            // Sarvam returns base64 in 'audios' array
-            if (data.audios && data.audios[0]) {
-                audioBuffer = Buffer.from(data.audios[0], 'base64');
-            } else {
-                throw new Error("Sarvam returned no audio");
-            }
-
         } else {
-          // Google Cloud Logic (Default)
-          const request = {
-            input: { text: text },
-            voice: { languageCode: 'en-IN', name: 'en-IN-Neural2-B' },
-            audioConfig: { audioEncoding: 'MP3' as const },
-          };
-          const [response] = await ttsClient.synthesizeSpeech(request);
-          if (!response.audioContent) throw new Error("No audio content returned");
-          audioBuffer = Buffer.from(response.audioContent);
+          // Sarvam AI Logic (default fallback)
+          if (!SARVAM_API_KEY) throw new Error("Sarvam API Key missing");
+
+          const sarvamUrl = "https://api.sarvam.ai/text-to-speech";
+          const response = await fetch(sarvamUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'api-subscription-key': SARVAM_API_KEY
+            },
+            body: JSON.stringify({
+              inputs: [text],
+              target_language_code: "hi-IN",
+              speaker: "dev",
+              pace: 1.25,  // Increased pace to reduce pauses between sentences
+              model: "bulbul:v3-beta"
+            })
+          });
+
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(`Sarvam Error: ${JSON.stringify(err)}`);
+          }
+
+          const data = await response.json() as { audios: string[] };
+          if (data.audios && data.audios[0]) {
+            audioBuffer = Buffer.from(data.audios[0], 'base64');
+          } else {
+            throw new Error("Sarvam returned no audio");
+          }
         }
 
         return new Response(JSON.stringify({ audioContent: audioBuffer.toString('base64') }), {
@@ -201,11 +404,19 @@ const server = serve({
       }
     }
 
-    // --- API: Chat with RAG ---
+    // --- API: Chat with RAG (Updated) ---
     if (url.pathname === "/api/chat" && req.method === "POST") {
       try {
-        const body = await req.json();
-        const { message, history } = body;
+        const body = await req.json() as { message: string, history: any[], conversation_id?: number };
+        const { message, history, conversation_id } = body;
+
+        // Persist User Message if conversation_id exists
+        if (conversation_id) {
+          try {
+            const insertMsg = db.prepare("INSERT INTO messages (conversation_id, role, content) VALUES (?, 'user', ?)");
+            insertMsg.run(conversation_id, message);
+          } catch (e) { console.error("Failed to save user message", e); }
+        }
 
         if (!API_KEY) {
           return new Response(JSON.stringify({ error: "API Key missing" }), { status: 500, headers });
@@ -223,71 +434,77 @@ You are the AI Avatar for **${eventInfo.name || 'TechEx'}**.
 Location: ${eventInfo.location}. Date: ${eventInfo.date}.
 ${eventInfo.description}
 
-**ROLE:**
-- Guide visitors to stalls.
-- Explain projects clearly.
-- Be concise (spoken output).
+**STRICT RESPONSE GUIDELINES:**
+1. **Punctuation:** Use frequent periods and commas for natural speech.
+2. **Brevity:** Max 2-3 sentences.
+3. **Navigation:** If asked for location, append [SHOW_MAP: <StallNumber>].
 
-**RELEVANT KNOWLEDGE (From your database):**
+**Knowledge Base:**
 ${contextString}
-
-**INSTRUCTIONS:**
-- If the user asks about specific tech/projects, use the "RELEVANT KNOWLEDGE" above.
-- If the knowledge above doesn't answer it, politely say you don't have info on that specific specific stall yet.
-- Keep answers short (2 sentences max) unless asked to elaborate.
-- DO NOT use markdown (*, #) in your output.
-        `;
-
-        const client = new GoogleGenAI({ apiKey: API_KEY });
-
-        const formattedHistory = (history || []).map((msg: any) => ({
-          role: msg.role === 'assistant' ? 'model' : msg.role,
-          parts: [{ text: msg.text }]
-        }));
-
-        formattedHistory.push({ role: 'user', parts: [{ text: message }] });
-
-        const result = await client.models.generateContentStream({
-          model: 'gemini-2.0-flash',
-          contents: formattedHistory,
-          config: {
-            systemInstruction: systemInstruction,
-          }
+`;
+        const model = genAI.getGenerativeModel({
+          model: "gemini-2.0-flash",
+          systemInstruction: systemInstruction,
         });
 
-        const stream = new ReadableStream({
-          async start(controller) {
-            const encoder = new TextEncoder();
-            try {
-              const streamResult = result as any;
-              const streamIterable = streamResult.stream || streamResult;
+        // Use reduced history for context window
+        // Standardize and filter history
+        let recentHistory = (history || []).map((msg: any) => {
+          const text = msg.content || msg.message || msg.text || "";
+          return {
+            role: (msg.role === 'user' || msg.type === 'user') ? 'user' : 'model',
+            parts: [{ text }]
+          };
+        }).filter(h => h.parts && h.parts.length > 0 && h.parts[0].text);
 
-              for await (const chunk of streamIterable) {
-                const chunkText = typeof chunk.text === 'function' ? chunk.text() : chunk.text;
-                if (chunkText) {
-                  controller.enqueue(encoder.encode(chunkText));
-                }
-              }
-              controller.close();
-            } catch (e) {
-              console.error("Stream Error:", e);
-              controller.error(e);
-            }
-          }
+        // Gemini history MUST start with 'user'. Find first user message.
+        const firstUserIdx = recentHistory.findIndex(h => h.role === 'user');
+        if (firstUserIdx !== -1) {
+          recentHistory = recentHistory.slice(firstUserIdx);
+        } else {
+          recentHistory = [];
+        }
+
+        // Limit window and ensure it still starts with 'user'
+        recentHistory = recentHistory.slice(-6);
+        if (recentHistory.length > 0 && recentHistory[0].role === 'model') {
+          recentHistory = recentHistory.slice(1);
+        }
+
+        console.log(`[CHAT] Calling Gemini with message: "${message.substring(0, 50)}..." and ${recentHistory.length} history items`);
+
+        const chat = model.startChat({
+          history: recentHistory,
+          generationConfig: {
+            maxOutputTokens: 250,
+            temperature: 0.7,
+          },
         });
 
-        return new Response(stream, {
-          headers: {
-            ...headers,
-            "Content-Type": "text/plain; charset=utf-8"
-          }
-        });
+        const result = await chat.sendMessage(message);
+        const response = result.response.text();
+
+        // Persist AI Message if conversation_id exists
+        if (conversation_id) {
+          try {
+            const insertMsg = db.prepare("INSERT INTO messages (conversation_id, role, content) VALUES (?, 'ai', ?)");
+            insertMsg.run(conversation_id, response);
+          } catch (e) { console.error("Failed to save ai message", e); }
+        }
+
+        return new Response(JSON.stringify({ response }), { headers });
 
       } catch (error: any) {
-        console.error("Chat API Error:", error);
-        return new Response(JSON.stringify({ error: error.message }), { status: 500, headers });
+        console.error("[CHAT] Gemini API Error:", error);
+        let errorMsg = error.message || "Chat Failed";
+        if (errorMsg.includes("typo in the url")) {
+          errorMsg = "Network error: Could not reach Gemini API. Please check your internet connection.";
+        }
+        return new Response(JSON.stringify({ error: errorMsg }), { status: 500, headers });
       }
     }
+
+
 
     if (url.pathname === "/api/context") {
       return Response.json({ context: "Legacy endpoint" }, { headers });
@@ -310,3 +527,4 @@ ${contextString}
 });
 
 console.log(`Server running at http://localhost:${server.port}`);
+console.log(`Accessible on network at http://10.118.106.21:${server.port}`);

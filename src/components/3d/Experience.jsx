@@ -1,7 +1,7 @@
 import { Environment, ContactShadows, OrbitControls } from '@react-three/drei';
 import { Avatar } from './Avatar';
 
-export const Experience = ({ isSpeaking }) => {
+export const Experience = ({ isSpeaking, analyser }) => {
   return (
     <>
       {/* Fixed POV - Locked Controls */}
@@ -20,7 +20,7 @@ export const Experience = ({ isSpeaking }) => {
       */}
       <group position-y={0}>
         <ContactShadows opacity={0.4} scale={10} blur={1} far={10} resolution={256} color="#000000" />
-        <Avatar isSpeaking={isSpeaking} />
+        <Avatar isSpeaking={isSpeaking} analyser={analyser} />
       </group>
 
       <ambientLight intensity={0.5} />

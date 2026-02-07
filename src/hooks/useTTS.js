@@ -2,13 +2,23 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 
 export const useTTS = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [provider, setProvider] = useState('sarvam'); // 'sarvam' | 'google' | 'elevenlabs'
+  const [provider, setProvider] = useState('elevenlabs'); // 'elevenlabs' or 'sarvam'
   const audioContextRef = useRef(null);
   const sourceNodeRef = useRef(null);
+  const sentenceQueueRef = useRef([]);
+  const isProcessingRef = useRef(false);
+
+  const analyserRef = useRef(null);
 
   const getAudioContext = () => {
     if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      audioContextRef.current = new AudioContextClass();
+
+      // Create AnalyserNode
+      analyserRef.current = audioContextRef.current.createAnalyser();
+      analyserRef.current.fftSize = 256;
+      analyserRef.current.connect(audioContextRef.current.destination);
     }
     if (audioContextRef.current.state === 'suspended') {
       audioContextRef.current.resume();
@@ -18,21 +28,21 @@ export const useTTS = () => {
 
   const stop = useCallback(() => {
     if (sourceNodeRef.current) {
-      try { sourceNodeRef.current.stop(); } catch (e) {}
+      try { sourceNodeRef.current.stop(); } catch (e) { }
       sourceNodeRef.current = null;
     }
+    sentenceQueueRef.current = [];
+    isProcessingRef.current = false;
     setIsSpeaking(false);
   }, []);
 
-  const speak = useCallback(async (text) => {
-    stop();
-    if (!text) return;
-
+  // Internal function to play a single audio buffer
+  const playAudioBuffer = useCallback(async (text) => {
     try {
       const response = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, provider }), // Send selected provider
+        body: JSON.stringify({ text, provider }),
       });
 
       if (!response.ok) {
@@ -53,21 +63,57 @@ export const useTTS = () => {
       const ctx = getAudioContext();
       const audioBuffer = await ctx.decodeAudioData(bytes.buffer);
 
-      const source = ctx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(ctx.destination);
+      return new Promise((resolve) => {
+        const source = ctx.createBufferSource();
+        source.buffer = audioBuffer;
 
-      source.onended = () => setIsSpeaking(false);
+        // Connect source to Analyser instead of ctx.destination
+        source.connect(analyserRef.current);
 
-      sourceNodeRef.current = source;
-      source.start(0);
-      setIsSpeaking(true);
+        // Only set isSpeaking TRUE when audio actually starts
+        setIsSpeaking(true);
 
+        source.onended = () => {
+          resolve();
+        };
+        sourceNodeRef.current = source;
+        source.start(0);
+      });
     } catch (error) {
       console.error("Audio Playback Error:", error);
-      setIsSpeaking(false);
     }
-  }, [stop, provider]);
+  }, [provider]);
+
+  // Process the sentence queue sequentially
+  const processQueue = useCallback(async () => {
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
+
+    while (sentenceQueueRef.current.length > 0) {
+      const sentence = sentenceQueueRef.current.shift();
+      if (sentence) {
+        await playAudioBuffer(sentence);
+      }
+    }
+
+    isProcessingRef.current = false;
+    setIsSpeaking(false);
+  }, [playAudioBuffer]);
+
+  // Queue a sentence for TTS playback
+  const queueSentence = useCallback((sentence) => {
+    if (!sentence || !sentence.trim()) return;
+    sentenceQueueRef.current.push(sentence);
+    processQueue();
+  }, [processQueue]);
+
+  // Original speak function (speaks entire text at once)
+  const speak = useCallback(async (text) => {
+    stop();
+    if (!text) return;
+    sentenceQueueRef.current.push(text);
+    processQueue();
+  }, [stop, processQueue]);
 
   useEffect(() => {
     return () => {
@@ -76,5 +122,15 @@ export const useTTS = () => {
     };
   }, [stop]);
 
-  return { speak, stop, isSpeaking, provider, setProvider };
+  return {
+    speak,
+    stop,
+    isSpeaking,
+    queueSentence,
+    provider,
+    setProvider,
+    analyser: analyserRef.current
+  };
 };
+
+

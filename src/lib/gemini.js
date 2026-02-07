@@ -34,23 +34,26 @@ ${STALL_LIST}
 **FAQ:**
 ${FAQ_LIST}
 
-**STRICT RESPONSE GUIDELINES:**
-1. **Brevity is King:** Keep responses **short** (max 2-3 sentences).
-2. **Spoken Flow:** Use commas and periods frequently to create natural breathing pauses. Avoid long, complex sentences.
-3. **Directness:** Answer the user's question directly.
-4. **No Markdown:** Do not use asterisks, bolding, or bullet points.
+**STRICT RESPONSE GUIDELINES FOR TTS:**
+1. **PUNCTUATION IS CRITICAL:** You MUST use periods (.), commas (,), and question marks (?) frequently. 
+2. **Short Sentences:** Break long ideas into short, punchy sentences.
+3. **Breathable Flow:** Write as if speaking. Use commas where a speaker would pause.
+4. **No Markdown:** Do not use asterisks (*), bolding (**), or bullet points (-).
+5. **Directness:** Answer directly and concisely (max 2-3 sentences).
 5. **Personality:** Professional, innovative, and helpful. Use "we" when referring to Tata Steel.
+6. **Navigation:** If the user asks for a LOCATION (e.g., "Where is X?", "Directions to Y"), YOU MUST append [SHOW_MAP: <StallNumber>] to the end of your response. Use the exact Stall Number from the directory (e.g., A-01, B-12). If no specific stall, use the Zone (e.g., Zone A).
 
-**Example:**
-User: "Where can I see robots?"
-You: "Head over to Stall D-402 to see the Snake Robot for Pipe Inspection by the Robotics Center of Excellence."
-`;
+  **Example:**
+  User: "Where can I see robots?"
+  You: "Head over to Stall D-402 to see the Snake Robot for Pipe Inspection. [SHOW_MAP: D-402]"
+  `;
 
 const model = genAI.getGenerativeModel({
-  model: "gemini-3-flash-preview",
+  model: "gemini-2.0-flash",
   systemInstruction: SYSTEM_PROMPT
 });
 
+// Original non-streaming function (kept for compatibility)
 export const getGeminiResponse = async (prompt) => {
   try {
     const result = await model.generateContent(prompt);
@@ -61,3 +64,43 @@ export const getGeminiResponse = async (prompt) => {
     return "I'm having trouble accessing the event database right now. Please try again.";
   }
 };
+
+// Streaming function - calls Backend API which handles RAG + Persistence
+export const getGeminiResponseStreaming = async (prompt, onSentence, onComplete, conversation_id = null, history = []) => {
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ message: prompt, history, conversation_id }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Server error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+
+    const text = data.response;
+
+    // Split into sentences for TTS
+    const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+    for (const sentence of sentences) {
+      const clean = sentence.replace(/\[SHOW_MAP:.*?\]/g, '').trim();
+      if (clean && onSentence) onSentence(clean);
+    }
+
+    if (onComplete) onComplete(text);
+    return text;
+
+  } catch (error) {
+    console.error("API Error:", error);
+    const errorMsg = error.message || "I'm having trouble connecting.";
+    if (onComplete) onComplete(errorMsg);
+    return errorMsg;
+  }
+};
+

@@ -3,7 +3,7 @@ import { useGLTF, useAnimations, useFBX, useTexture } from '@react-three/drei';
 import { useFrame, useGraph } from '@react-three/fiber';
 import * as THREE from 'three';
 
-export function Avatar({ isSpeaking }) {
+export function Avatar({ isSpeaking, analyser }) {
   const group = useRef();
 
   // 1. Load Assets
@@ -47,38 +47,54 @@ export function Avatar({ isSpeaking }) {
   useEffect(() => {
     const idle = actions['Idle'];
     const talk = actions['Talking'];
-    if (isSpeaking && talk) {
-      idle?.fadeOut(0.5);
-      talk.reset().fadeIn(0.5).play();
-    } else if (idle) {
-      talk?.fadeOut(0.5);
-      idle.reset().fadeIn(0.5).play();
+    if (idle) {
+      idle.reset().play();
+      idle.setEffectiveWeight(1);
     }
-  }, [isSpeaking, actions]);
-
-  useEffect(() => {
-    if (actions['Idle']) actions['Idle'].play();
+    if (talk) {
+      talk.reset().play();
+      talk.setEffectiveWeight(0);
+    }
   }, [actions]);
 
   // 4. FRAME LOOP
   useFrame((state) => {
-    // LIP SYNC
+    // 1. Audio Intensity Analysis
+    let intensity = 0;
+    if (isSpeaking && analyser) {
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(dataArray);
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+      const average = sum / dataArray.length;
+      intensity = Math.min(1, (average / 128) * 1.5);
+    }
+
+    // 2. Gesture Synchronization (Arms/Body)
+    const idleAction = actions['Idle'];
+    const talkAction = actions['Talking'];
+    if (idleAction && talkAction) {
+      // If we stop speaking, drop talk weight to 0 immediately to return to Idle
+      const targetTalkWeight = isSpeaking ? (intensity > 0.05 ? 1 : 0) : 0;
+      const currentTalkWeight = talkAction.getEffectiveWeight();
+      const nextTalkWeight = THREE.MathUtils.lerp(currentTalkWeight, targetTalkWeight, 0.1);
+
+      talkAction.setEffectiveWeight(nextTalkWeight);
+      idleAction.setEffectiveWeight(1 - nextTalkWeight);
+    }
+
+    // 3. Lip Synchronization
     const head = nodes.Wolf3D_Head;
     const teeth = nodes.Wolf3D_Teeth;
     if (head?.morphTargetInfluences) {
       const mouthOpenIndex = head.morphTargetDictionary['mouthOpen'];
       if (mouthOpenIndex !== undefined) {
-          let targetOpen = 0;
-          if (isSpeaking) {
-            const t = state.clock.elapsedTime;
-            targetOpen = ((Math.sin(t * 25) + Math.cos(t * 10) + 2) / 8) + 0.1;
-          }
-          head.morphTargetInfluences[mouthOpenIndex] = THREE.MathUtils.lerp(
-            head.morphTargetInfluences[mouthOpenIndex], targetOpen, 0.6
-          );
-          if (teeth?.morphTargetInfluences) {
-             teeth.morphTargetInfluences[teeth.morphTargetDictionary['mouthOpen']] = head.morphTargetInfluences[mouthOpenIndex];
-          }
+        head.morphTargetInfluences[mouthOpenIndex] = THREE.MathUtils.lerp(
+          head.morphTargetInfluences[mouthOpenIndex], intensity, 0.4
+        );
+        if (teeth?.morphTargetInfluences) {
+          teeth.morphTargetInfluences[teeth.morphTargetDictionary['mouthOpen']] = head.morphTargetInfluences[mouthOpenIndex];
+        }
       }
     }
 
@@ -86,8 +102,8 @@ export function Avatar({ isSpeaking }) {
     if (nodes.Neck) nodes.Neck.rotation.set(0, 0, 0);
     if (nodes.Head) nodes.Head.rotation.set(0, 0, 0);
     if (nodes.Hips) {
-       nodes.Hips.rotation.set(0, 0, 0);
-       nodes.Hips.position.set(0, 1.0, 0); 
+      nodes.Hips.rotation.set(0, 0, 0);
+      nodes.Hips.position.set(0, 1.0, 0);
     }
   });
 
