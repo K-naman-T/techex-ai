@@ -75,6 +75,13 @@ function AppLayout() {
     }
   }, [transcript, isListening]);
 
+  // Sync loading state with TTS: Stop thinking when voice starts
+  useEffect(() => {
+    if (isSpeaking) {
+      setLoading(false);
+    }
+  }, [isSpeaking]);
+
   // === API Functions ===
   const loadConversations = async () => {
     try {
@@ -143,6 +150,9 @@ function AppLayout() {
     setMessages(prev => [...prev, { role: 'ai', content: '...', id: aiMsgId }]);
 
     try {
+      // Determine chat language: if STT is Hindi, tell Gemini to respond in Hindi
+      const chatLanguage = language?.startsWith('hi') ? 'hi' : 'en';
+
       await getGeminiResponseStreaming(
         text,
         (sentence) => {
@@ -157,10 +167,14 @@ function AppLayout() {
           setMessages(prev => prev.map(msg =>
             msg.id === aiMsgId ? { ...msg, content: fullResponse } : msg
           ));
-          setLoading(false);
+
+          // Safety fallback: if for some reason TTS doesn't trigger isSpeaking, 
+          // stop loading after a reasonable delay (5s)
+          setTimeout(() => setLoading(false), 5000);
         },
         conversationId,
-        messages // Pass history for context
+        messages, // Pass history for context
+        chatLanguage // Pass language for Gemini system instruction
       );
     } catch (error) {
       console.error("Error processing request:", error);

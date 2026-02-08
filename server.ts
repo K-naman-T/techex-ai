@@ -324,16 +324,27 @@ const server = serve({
     // --- API: TTS (Multi-Provider) ---
     if (url.pathname === "/api/tts" && req.method === "POST") {
       try {
-        const { text, provider = 'elevenlabs' } = await req.json() as { text: string, provider?: string };
+        const { text, provider = 'sarvam' } = await req.json() as { text: string, provider?: string };
         if (!text) return new Response(JSON.stringify({ error: "Text missing" }), { status: 400, headers });
 
         let audioBuffer: Buffer;
 
-        if (provider === 'elevenlabs') {
-          // ElevenLabs Logic
+        // Detect if text contains Hindi (Devanagari script)
+        const containsHindi = /[\u0900-\u097F]/.test(text);
+
+        // Auto-select provider based on language if 'auto' mode
+        // Defaulting to Sarvam for Hindi, but allowing auto-selection
+        let effectiveProvider = provider;
+        if (provider === 'auto') {
+          effectiveProvider = containsHindi ? 'sarvam' : 'elevenlabs';
+          console.log(`[TTS] Auto-detected language: ${containsHindi ? 'Hindi' : 'English'}, using ${effectiveProvider}`);
+        }
+
+        if (effectiveProvider === 'elevenlabs') {
+          // ElevenLabs Logic - use multilingual_v2 for better language support
           if (!ELEVENLABS_API_KEY) throw new Error("ElevenLabs API Key missing");
-          // "Adam" - Standard Free Tier Voice (American, but guaranteed to work)
-          const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "pNInz6obpgDQGcFmaJgB";
+          // "Sonu" - Multilingual Indian Male Voice (Available in library/premade)
+          const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "pzxut4zZz4GImZNlqQ3H";
           const elevenUrl = `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`;
 
           const response = await fetch(elevenUrl, {
@@ -344,17 +355,18 @@ const server = serve({
             },
             body: JSON.stringify({
               text: text,
-              model_id: "eleven_turbo_v2_5",
+              model_id: "eleven_multilingual_v2",  // Multilingual model helps with accent/naturalness
               voice_settings: {
                 stability: 0.5,
                 similarity_boost: 0.75,
-                speed: 1.1  // Slightly faster to reduce pauses between sentences
+                speed: 1.1
               }
             })
           });
 
           if (!response.ok) {
             const err = await response.json();
+            console.error("[TTS] ElevenLabs Error:", err);
             throw new Error(`ElevenLabs Error: ${JSON.stringify(err)}`);
           }
 
@@ -362,8 +374,8 @@ const server = serve({
           audioBuffer = Buffer.from(arrayBuffer);
 
         } else {
-          // Sarvam AI Logic (default fallback)
-          if (!SARVAM_API_KEY) throw new Error("Sarvam API Key missing");
+          // Sarvam AI Logic - for pure Hindi
+          if (!SARVAM_API_KEY) throw new Error("Sarvam AI API Key missing");
 
           const sarvamUrl = "https://api.sarvam.ai/text-to-speech";
           const response = await fetch(sarvamUrl, {
@@ -375,14 +387,17 @@ const server = serve({
             body: JSON.stringify({
               inputs: [text],
               target_language_code: "hi-IN",
-              speaker: "dev",
-              pace: 1.25,  // Increased pace to reduce pauses between sentences
-              model: "bulbul:v3-beta"
+              speaker: "ratan",
+              pace: 1.0,
+              model: "bulbul:v3",
+              enable_preprocessing: true, // Explicitly enable smart normalization
+              temperature: 0.6            // Default recommended for naturalness
             })
           });
 
           if (!response.ok) {
             const err = await response.json();
+            console.error("[TTS] Sarvam Error:", err);
             throw new Error(`Sarvam Error: ${JSON.stringify(err)}`);
           }
 
@@ -407,8 +422,8 @@ const server = serve({
     // --- API: Chat with RAG (Updated) ---
     if (url.pathname === "/api/chat" && req.method === "POST") {
       try {
-        const body = await req.json() as { message: string, history: any[], conversation_id?: number };
-        const { message, history, conversation_id } = body;
+        const body = await req.json() as { message: string, history: any[], conversation_id?: number, language?: string };
+        const { message, history, conversation_id, language = 'en' } = body;
 
         // Persist User Message if conversation_id exists
         if (conversation_id) {
@@ -428,8 +443,12 @@ const server = serve({
           `- Project: "${p.title}" (Stall ${p.stall_number})\n  Category: ${p.category}\n  Details: ${p.description}`
         ).join("\n\n");
 
-        const systemInstruction = `
+        // Language-specific instruction for TTS compatibility
+        const languageInstruction = language === 'hi'
+          ? `**भाषा:** आपको केवल शुद्ध हिंदी (देवनागरी लिपि) में उत्तर देना है। अंग्रेजी शब्दों का प्रयोग न करें। संख्याओं को हिंदी में लिखें (उदाहरण: 2026 को "दो हज़ार छब्बीस" लिखें)।`
+          : `**Language:** Respond ONLY in English. Do not mix Hindi words. Write numbers naturally (e.g., "2026" as "twenty twenty-six" or "two thousand twenty-six").`;
 
+        const systemInstruction = `
 You are the AI Avatar for **${eventInfo.name || 'TechEx'}**.
 Location: ${eventInfo.location}. Date: ${eventInfo.date}.
 ${eventInfo.description}
@@ -438,6 +457,7 @@ ${eventInfo.description}
 1. **Punctuation:** Use frequent periods and commas for natural speech.
 2. **Brevity:** Max 2-3 sentences.
 3. **Navigation:** If asked for location, append [SHOW_MAP: <StallNumber>].
+${languageInstruction}
 
 **Knowledge Base:**
 ${contextString}
@@ -453,9 +473,9 @@ ${contextString}
           const text = msg.content || msg.message || msg.text || "";
           return {
             role: (msg.role === 'user' || msg.type === 'user') ? 'user' : 'model',
-            parts: [{ text }]
+            parts: [{ text: String(text) }]
           };
-        }).filter(h => h.parts && h.parts.length > 0 && h.parts[0].text);
+        }).filter(h => h.parts && h.parts.length > 0 && h.parts[0]?.text);
 
         // Gemini history MUST start with 'user'. Find first user message.
         const firstUserIdx = recentHistory.findIndex(h => h.role === 'user');
@@ -467,11 +487,11 @@ ${contextString}
 
         // Limit window and ensure it still starts with 'user'
         recentHistory = recentHistory.slice(-6);
-        if (recentHistory.length > 0 && recentHistory[0].role === 'model') {
+        if (recentHistory.length > 0 && recentHistory[0]?.role === 'model') {
           recentHistory = recentHistory.slice(1);
         }
 
-        console.log(`[CHAT] Calling Gemini with message: "${message.substring(0, 50)}..." and ${recentHistory.length} history items`);
+        console.log(`[CHAT] Calling Gemini with message: "${(message || "").substring(0, 50)}..." and ${recentHistory.length} history items`);
 
         const chat = model.startChat({
           history: recentHistory,

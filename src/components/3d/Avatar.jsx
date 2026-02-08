@@ -10,15 +10,15 @@ export function Avatar({ isSpeaking, analyser }) {
   const { scene } = useGLTF('/avatar.glb');
   const { nodes } = useGraph(scene);
 
-  // 2. Load animations
-  const idleFbx = useFBX('/Idle.fbx');
-  const talkingFbx = useFBX('/Talking.fbx');
+  // 2. Load animations (ReadyPlayerMe official animations)
+  const idleFbx = useFBX('/M_Standing_Idle_002.fbx');
+  const talkingGlb = useGLTF('/F_Talking_Variations_002.glb');
 
   // 3. Clean Animations
   const animations = useMemo(() => {
     const clips = [];
     const idleRaw = (idleFbx && idleFbx.animations) ? idleFbx.animations : [];
-    const talkingRaw = (talkingFbx && talkingFbx.animations) ? talkingFbx.animations : [];
+    const talkingRaw = (talkingGlb && talkingGlb.animations) ? talkingGlb.animations : [];
 
     const cleanClip = (clip, name) => {
       if (!clip) return null;
@@ -40,7 +40,7 @@ export function Avatar({ isSpeaking, analyser }) {
     if (talkingRaw.length > 0) clips.push(cleanClip(talkingRaw[0], 'Talking'));
 
     return clips;
-  }, [idleFbx, talkingFbx]);
+  }, [idleFbx, talkingGlb]);
 
   const { actions } = useAnimations(animations, group);
 

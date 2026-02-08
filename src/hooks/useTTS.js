@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 
 export const useTTS = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [provider, setProvider] = useState('elevenlabs'); // 'elevenlabs' or 'sarvam'
+  const [provider, setProvider] = useState('sarvam'); // 'sarvam' or 'elevenlabs'
   const audioContextRef = useRef(null);
   const sourceNodeRef = useRef(null);
   const sentenceQueueRef = useRef([]);

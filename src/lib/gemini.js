@@ -66,14 +66,14 @@ export const getGeminiResponse = async (prompt) => {
 };
 
 // Streaming function - calls Backend API which handles RAG + Persistence
-export const getGeminiResponseStreaming = async (prompt, onSentence, onComplete, conversation_id = null, history = []) => {
+export const getGeminiResponseStreaming = async (prompt, onSentence, onComplete, conversation_id = null, history = [], language = 'en') => {
   try {
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ message: prompt, history, conversation_id }),
+      body: JSON.stringify({ message: prompt, history, conversation_id, language }),
     });
 
     if (!response.ok) {

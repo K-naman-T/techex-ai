@@ -1,9 +1,7 @@
-import { Settings, StopCircle, LogOut } from 'lucide-react';
+import { Settings, LogOut } from 'lucide-react';
 import { SettingsModal } from './SettingsModal';
 
 export const AppHeader = ({
-    isSpeaking,
-    onStop,
     showSettings,
     setShowSettings,
     ttsProvider,
@@ -30,17 +28,6 @@ export const AppHeader = ({
 
             {/* Controls */}
             <div className="pointer-events-auto flex gap-3 relative">
-                {/* Stop Speaking Button */}
-                {isSpeaking && (
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onStop(); }}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-500/80 border border-red-500/50 text-white rounded-full hover:bg-red-600 transition-all backdrop-blur-md shadow-[0_0_15px_rgba(239,68,68,0.5)] animate-in fade-in zoom-in duration-300"
-                    >
-                        <StopCircle size={20} className="animate-pulse" />
-                        <span className="font-mono text-sm font-bold">STOP</span>
-                    </button>
-                )}
-
                 {/* Settings Button */}
                 <button
                     onClick={() => setShowSettings(!showSettings)}
