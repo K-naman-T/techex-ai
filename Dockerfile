@@ -1,29 +1,41 @@
-# Build stage for React frontend
-FROM oven/bun:latest AS build
+# ===== Build Stage =====
+# Use a pinned Bun version for consistent builds
+FROM oven/bun:1.1.38 AS build
 WORKDIR /app
+
+# Install dependencies first (for better layer caching)
 COPY package.json bun.lock* ./
-RUN bun install
+RUN bun install --frozen-lockfile
+
+# Copy source and build frontend
 COPY . .
-# Vite build (will pick up environment variables if passed to Railway)
 RUN bun run build
 
-# Production stage
-FROM oven/bun:latest
+
+# ===== Production Stage =====
+FROM oven/bun:1.1.38-slim
 WORKDIR /app
 
-# Copy lockfiles and package.json first for better caching
-COPY package.json bun.lock* ./
-RUN bun install --production
+# Use the built-in 'bun' non-root user for security
+USER bun
 
-# Copy build artifacts and server source
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/server.ts ./
+# Copy only production dependencies manifest
+COPY --chown=bun:bun package.json bun.lock* ./
+RUN bun install --production --frozen-lockfile
 
-# Knowledge Base data
-COPY data ./data
+# Copy pre-built frontend and server source
+COPY --chown=bun:bun --from=build /app/dist ./dist
+COPY --chown=bun:bun --from=build /app/server.ts ./
 
-EXPOSE 3005
-ENV PORT=3005
+# Copy Knowledge Base data
+COPY --chown=bun:bun data ./data
+
+# Render assigns PORT dynamically. We expose a default for local testing.
+EXPOSE 10000
 ENV NODE_ENV=production
+
+# Health check for Render
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD curl --fail http://localhost:${PORT:-10000}/ || exit 1
 
 CMD ["bun", "run", "server.ts"]
