@@ -1,5 +1,4 @@
 # ===== Build Stage =====
-# Use a pinned Bun version for consistent builds
 FROM oven/bun:1.1.38 AS build
 WORKDIR /app
 
@@ -16,7 +15,7 @@ RUN bun run build
 FROM oven/bun:1.1.38-slim
 WORKDIR /app
 
-# Copy only production dependencies manifest and install as root first
+# Install production dependencies
 COPY package.json bun.lock* ./
 RUN bun install --production --frozen-lockfile
 
@@ -27,18 +26,8 @@ COPY --from=build /app/server.ts ./
 # Copy Knowledge Base data
 COPY data ./data
 
-# Change ownership to bun user for security AFTER all files are copied
-RUN chown -R bun:bun /app
-
-# Switch to non-root user
-USER bun
-
-# Render assigns PORT dynamically. We expose a default for local testing.
+# Render assigns PORT dynamically
 EXPOSE 10000
 ENV NODE_ENV=production
-
-# Health check for Render
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD curl --fail http://localhost:${PORT:-10000}/ || exit 1
 
 CMD ["bun", "run", "server.ts"]
