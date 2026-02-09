@@ -85,22 +85,27 @@ try {
 }
 
 // --- Helper: Verify Auth & Sync User (TEMPORARILY BYPASSED) ---
-async function authenticate(req: Request) {
-  // Hardcoded guest user for local testing without auth
-  const guestUser = {
-    id: "guest-user",
-    email: "guest@example.com",
-    user_metadata: { full_name: "Guest User" }
-  };
+const GUEST_USER = {
+  id: "guest-user",
+  email: "guest@example.com",
+  user_metadata: { full_name: "Guest User" }
+};
 
-  // Sync guest user to our public.users table if missing
+// One-time Sync for Guest User at startup
+try {
   await sql`
     INSERT INTO users (id, email, name)
-    VALUES (${guestUser.id}, ${guestUser.email}, ${guestUser.user_metadata.full_name})
+    VALUES (${GUEST_USER.id}, ${GUEST_USER.email}, ${GUEST_USER.user_metadata.full_name})
     ON CONFLICT (id) DO NOTHING
   `;
+  console.log("[DB] Guest user synced at startup.");
+} catch (e) {
+  console.error("[DB] Guest sync failed:", e);
+}
 
-  return guestUser;
+async function authenticate(req: Request) {
+  // Near-instant return for guest
+  return GUEST_USER;
 }
 
 // --- RAG: Vector Store Implementation ---
@@ -178,29 +183,44 @@ class LocalVectorStore {
 const vectorStore = new LocalVectorStore();
 let eventInfo: any = {};
 
+let projectsContext: string = "";
+
 const initKnowledgeBase = async () => {
-  if (!fs.existsSync(DB_PATH)) return;
-  const rawData = fs.readFileSync(DB_PATH, "utf-8");
-  const db = JSON.parse(rawData);
-  eventInfo = db.events[0];
-  const projects = db.projects || [];
-  await vectorStore.addDocuments(projects);
+  try {
+    if (!fs.existsSync(DB_PATH)) {
+      console.warn(`[INIT] Knowledge base not found at ${DB_PATH}`);
+      return;
+    }
+    const rawData = fs.readFileSync(DB_PATH, "utf-8");
+    const db = JSON.parse(rawData);
+    eventInfo = db.events[0];
+    const projects = db.projects || [];
+
+    // Efficiency: Pre-build context string to save per-request CPU
+    projectsContext = projects.map((p: any) =>
+      `Project: ${p.title} | Stall: ${p.stall_number} | Category: ${p.category} | Description: ${p.description}`
+    ).join("\n");
+
+    console.log(`[INIT] Knowledge base loaded. ${projects.length} projects cached.`);
+  } catch (error) {
+    console.error("[INIT] Failed to load knowledge base:", error);
+  }
 };
 
-// Initialize RAG and then start server
-await initKnowledgeBase();
-
+// Start server IMMEDIATELY, fetch KB in background
 const server = serve({
   port: process.env.PORT || 3005,
-  hostname: "0.0.0.0", // Allow all interfaces for Cloud Run
+  hostname: "0.0.0.0",
   async fetch(req) {
     const url = new URL(req.url);
-
     const headers = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization"
     };
+
+    // Lazy load KB if background fetch hasn't finished
+    if (!projectsContext) await initKnowledgeBase();
 
     if (req.method === "OPTIONS") {
       return new Response(null, { headers });
@@ -464,11 +484,9 @@ const server = serve({
           return new Response(JSON.stringify({ error: "API Key missing" }), { status: 500, headers });
         }
 
-        const relevantProjects = await vectorStore.search(message, 4);
-
-        const contextString = relevantProjects.map(p =>
-          `- Project: "${p.title}" (Stall ${p.stall_number})\n  Category: ${p.category}\n  Details: ${p.description}`
-        ).join("\n\n");
+        // --- PRODUCTION HARDENING ---
+        // Direct Context Injection is faster and more reliable than vector search for this size.
+        const contextString = projectsContext || "No project data available.";
 
         // Language-specific instruction for TTS compatibility
         const languageInstruction = language === 'hi'
