@@ -32,16 +32,18 @@ export const BottomControlBar = ({
 
       {/* Quick Replies */}
       {!isSpeaking && !loading && quickReplies.length > 0 && !isFocused && (
-        <div className="flex justify-center gap-2 overflow-x-auto pb-2 scrollbar-hide mask-linear-fade">
-          {quickReplies.map((text, idx) => (
-            <button
-              key={idx}
-              onClick={() => onQuickReply(text)}
-              className="flex-shrink-0 px-4 py-2 bg-black/40 backdrop-blur-md border border-white/10 rounded-full text-sm text-cyan-100/80 hover:bg-cyan-500/20 hover:border-cyan-500/50 hover:text-white transition-all shadow-lg hover:shadow-cyan-500/20 whitespace-nowrap"
-            >
-              {text}
-            </button>
-          ))}
+        <div className="flex w-full items-center justify-start gap-3 overflow-x-auto pb-3 custom-scrollbar snap-x no-scrollbar">
+          <div className="flex gap-2 mx-auto px-4">
+            {quickReplies.map((text, idx) => (
+              <button
+                key={idx}
+                onClick={() => onQuickReply(text)}
+                className="flex-shrink-0 px-5 py-2.5 bg-[#0a0a0a]/60 backdrop-blur-xl border border-white/10 rounded-full text-sm font-medium text-cyan-100/90 hover:bg-cyan-500/20 hover:border-cyan-500/50 hover:text-white transition-all shadow-xl whitespace-nowrap snap-center active:scale-95"
+              >
+                {text}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

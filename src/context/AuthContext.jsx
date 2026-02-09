@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext();
 
@@ -6,76 +7,74 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [token, setToken] = useState(localStorage.getItem('token'));
+    const [session, setSession] = useState(null);
     const [config, setConfig] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check if token exists and validate (optional: add /me endpoint to validate token)
-        if (token) {
-            // For now, assume decode or persisted user. Ideally fetch /me
-            const savedUser = localStorage.getItem('user');
-            if (savedUser) {
-                try {
-                    setUser(JSON.parse(savedUser));
-                } catch (e) {
-                    logout();
-                }
-            }
-        }
+        // (TEMPORARILY BYPASSED) Hardcoded guest session
+        const guestUser = {
+            id: "guest-user",
+            email: "guest@example.com",
+            user_metadata: { full_name: "Guest User" }
+        };
+        const guestSession = {
+            user: guestUser,
+            access_token: "guest-token"
+        };
+
+        setSession(guestSession);
+        setUser(guestUser);
+        loadUserConfigLocal(guestUser.id, "guest-token");
         setLoading(false);
     }, []);
 
-    const login = async (email, password) => {
+    const loadUserConfigLocal = async (userId, manualToken) => {
         try {
-            const res = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
+            const token = manualToken || (await supabase.auth.getSession()).data.session?.access_token || "guest-token";
+            const res = await fetch('/api/user/config', {
+                headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
-
-            setToken(data.token);
-            setUser(data.user);
-            setConfig(data.config);
-
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('user', JSON.stringify(data.user));
-
-            return data;
-        } catch (error) {
-            throw error;
+            if (res.ok) setConfig(data);
+        } catch (e) {
+            console.error("Failed to load user config", e);
         }
+    };
+
+    const login = async (email, password) => {
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
+        if (error) throw error;
+        return data;
     };
 
     const signup = async (email, password, name) => {
-        try {
-            const res = await fetch('/api/auth/signup', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password, name }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
-            return data;
-        } catch (error) {
-            throw error;
-        }
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: { full_name: name }
+            }
+        });
+        if (error) throw error;
+        return data;
     };
 
-    const logout = () => {
+    const logout = async () => {
+        await supabase.auth.signOut();
         setUser(null);
-        setToken(null);
+        setSession(null);
         setConfig(null);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
     };
 
     const updateConfig = async (newConfig) => {
         // Optimistic update
         setConfig(prev => ({ ...prev, ...newConfig }));
         try {
+            const token = session?.access_token;
             await fetch('/api/user/config', {
                 method: 'POST',
                 headers: {
@@ -90,7 +89,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, token, config, login, signup, logout, updateConfig, loading }}>
+        <AuthContext.Provider value={{ user, session, token: session?.access_token, config, login, signup, logout, updateConfig, loading }}>
             {children}
         </AuthContext.Provider>
     );

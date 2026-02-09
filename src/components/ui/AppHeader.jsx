@@ -1,4 +1,4 @@
-import { Settings, LogOut } from 'lucide-react';
+import { Settings, LogOut, Menu } from 'lucide-react';
 import { SettingsModal } from './SettingsModal';
 
 export const AppHeader = ({
@@ -8,7 +8,8 @@ export const AppHeader = ({
     setTtsProvider,
     sttLanguage,
     setSttLanguage,
-    onLogout
+    onLogout,
+    onToggleSidebar
 }) => {
     return (
         <div className="absolute top-0 left-0 w-full p-8 flex justify-between items-start pointer-events-none z-50">
@@ -28,6 +29,15 @@ export const AppHeader = ({
 
             {/* Controls */}
             <div className="pointer-events-auto flex gap-3 relative">
+                {/* History Toggle Button */}
+                <button
+                    onClick={onToggleSidebar}
+                    className="h-10 w-10 rounded-full border border-white/10 bg-black/20 text-gray-400 hover:text-white hover:bg-white/5 flex items-center justify-center backdrop-blur-md transition-all"
+                    title="Chat History"
+                >
+                    <Menu size={20} />
+                </button>
+
                 {/* Settings Button */}
                 <button
                     onClick={() => setShowSettings(!showSettings)}

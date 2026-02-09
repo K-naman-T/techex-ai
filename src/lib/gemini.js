@@ -72,6 +72,7 @@ export const getGeminiResponseStreaming = async (prompt, onSentence, onComplete,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': 'Bearer guest-token'
       },
       body: JSON.stringify({ message: prompt, history, conversation_id, language }),
     });

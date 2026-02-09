@@ -52,7 +52,7 @@ export const FloatingChat = ({ messages, loading, isFocused, onMapClick }) => {
   return (
     <div className={`absolute inset-0 z-30 pointer-events-none flex flex-col justify-end px-4 md:px-0 transition-all duration-500 ${isFocused ? 'pb-36 pt-24' : 'pb-32 h-[60vh] top-auto'}`}>
       <div className={`w-full max-w-3xl mx-auto overflow-y-auto custom-scrollbar pointer-events-auto pr-2 ${isFocused ? 'h-full' : 'h-full mask-gradient-top'}`}>
-        {messages.map((msg, idx) => (
+        {messages.filter(msg => msg.content && msg.content.trim() !== '').map((msg, idx) => (
           <FloatingBubble key={idx} message={msg} onMapClick={onMapClick} />
         ))}
 

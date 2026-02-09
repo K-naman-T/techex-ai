@@ -1,24 +1,14 @@
 import { serve } from "bun";
-import { Database } from "bun:sqlite";
-import jwt from "jsonwebtoken";
+import postgres from "postgres";
+import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
 import path from "node:path";
 import { Buffer } from "node:buffer";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { TextToSpeechClient } from "@google-cloud/text-to-speech";
-
-// Credentials
-const CREDENTIALS_PATH = path.join(import.meta.dir, "google-credentials.json");
-
-if (!fs.existsSync(CREDENTIALS_PATH)) {
-  console.error("Error: google-credentials.json not found!");
-  process.exit(1);
-}
-
-process.env.GOOGLE_APPLICATION_CREDENTIALS = CREDENTIALS_PATH;
 
 const DB_PATH = path.join(process.cwd(), "data", "db.json");
 const API_KEY = process.env.VITE_GEMINI_API_KEY;
+const genAI = new GoogleGenerativeAI(API_KEY || "");
 if (!API_KEY) {
   console.error("Error: VITE_GEMINI_API_KEY is missing in .env");
   process.exit(1);
@@ -27,58 +17,91 @@ if (!API_KEY) {
 }
 const ELEVENLABS_API_KEY = process.env.VITE_ELEVENLABS_API_KEY || "";
 const SARVAM_API_KEY = process.env.VITE_SARVAM_API_KEY || "";
-const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-change-this";
 
-// --- Database Setup (SQLite) ---
-const db = new Database("techex.sqlite");
-db.run("PRAGMA foreign_keys = ON;");
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  console.error("Error: DATABASE_URL is missing in .env");
+  process.exit(1);
+}
 
-// Initialize Schema
-db.run(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    name TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-`);
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.error("Error: Supabase credentials missing in .env");
+  process.exit(1);
+}
 
-db.run(`
-  CREATE TABLE IF NOT EXISTS conversations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    title TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
-`);
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-db.run(`
-  CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    conversation_id INTEGER,
-    role TEXT, -- 'user' or 'ai'
-    content TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
-  );
-`);
+// --- Database Setup (PostgreSQL) ---
+const sql = postgres(DATABASE_URL, {
+  ssl: 'require', // Required for Supabase
+  max: 10,
+  idle_timeout: 20,
+  connect_timeout: 10,
+});
 
-db.run(`
-  CREATE TABLE IF NOT EXISTS user_configs (
-    user_id INTEGER PRIMARY KEY,
-    voice_provider TEXT DEFAULT 'elevenlabs',
-    voice_id TEXT,
-    stt_language TEXT DEFAULT 'en-IN',
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
-`);
+// Initialize Schema (using Postgres syntax with UUID as TEXT)
+try {
+  await sql`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY, -- Stores Supabase User UUID
+      email TEXT UNIQUE NOT NULL,
+      name TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `;
 
-console.log("[DB] SQLite Database initialized.");
+  await sql`
+    CREATE TABLE IF NOT EXISTS conversations (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `;
 
-const ttsClient = new TextToSpeechClient();
-const genAI = new GoogleGenerativeAI(API_KEY);
+  await sql`
+    CREATE TABLE IF NOT EXISTS messages (
+      id SERIAL PRIMARY KEY,
+      conversation_id INTEGER REFERENCES conversations(id) ON DELETE CASCADE,
+      role TEXT,
+      content TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS user_configs (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      voice_provider TEXT DEFAULT 'elevenlabs',
+      voice_id TEXT,
+      stt_language TEXT DEFAULT 'en-IN'
+    );
+  `;
+  console.log("[DB] PostgreSQL Database initialized and schema verified.");
+} catch (error) {
+  console.error("[DB] Error initializing schema:", error);
+}
+
+// --- Helper: Verify Auth & Sync User (TEMPORARILY BYPASSED) ---
+async function authenticate(req: Request) {
+  // Hardcoded guest user for local testing without auth
+  const guestUser = {
+    id: "guest-user",
+    email: "guest@example.com",
+    user_metadata: { full_name: "Guest User" }
+  };
+
+  // Sync guest user to our public.users table if missing
+  await sql`
+    INSERT INTO users (id, email, name)
+    VALUES (${guestUser.id}, ${guestUser.email}, ${guestUser.user_metadata.full_name})
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  return guestUser;
+}
 
 // --- RAG: Vector Store Implementation ---
 class LocalVectorStore {
@@ -110,7 +133,7 @@ class LocalVectorStore {
     for (const doc of docs) {
       const textToEmbed = `Title: ${doc.title}. Category: ${doc.category}. Description: ${doc.description}. Keywords: ${doc.team_name}`;
       try {
-        const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
+        const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
         const result = await model.embedContent(textToEmbed);
         const embedding = result.embedding.values;
 
@@ -132,7 +155,7 @@ class LocalVectorStore {
 
   async search(query: string, topK: number = 3) {
     try {
-      const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
+      const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
       const result = await model.embedContent(query);
       const queryEmbedding = result.embedding.values;
 
@@ -168,7 +191,8 @@ const initKnowledgeBase = async () => {
 await initKnowledgeBase();
 
 const server = serve({
-  port: 3005,
+  port: process.env.PORT || 3005,
+  hostname: "0.0.0.0", // Allow all interfaces for Cloud Run
   async fetch(req) {
     const url = new URL(req.url);
 
@@ -182,97 +206,40 @@ const server = serve({
       return new Response(null, { headers });
     }
 
-    // --- API: Auth (Signup) ---
-    if (url.pathname === "/api/auth/signup" && req.method === "POST") {
-      try {
-        let { email, password, name } = await req.json() as any;
-        if (!email || !password) return new Response(JSON.stringify({ error: "Email and password required" }), { status: 400, headers });
-
-        email = email.toLowerCase().trim();
-        const passwordHash = await Bun.password.hash(password);
-
-        try {
-          const insert = db.prepare("INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)");
-          insert.run(email, passwordHash, name || "User");
-          console.log(`[SIGNUP] Success: ${email}`);
-          return new Response(JSON.stringify({ message: "User created" }), { status: 201, headers });
-        } catch (e: any) {
-          if (e.message.includes("UNIQUE constraint failed")) {
-            return new Response(JSON.stringify({ error: "Email already exists" }), { status: 409, headers });
-          }
-          throw e;
-        }
-      } catch (error) {
-        console.error("[SIGNUP] Error:", error);
-        return new Response(JSON.stringify({ error: "Signup failed" }), { status: 500, headers });
-      }
-    }
-
-    // --- API: Auth (Login) ---
-    if (url.pathname === "/api/auth/login" && req.method === "POST") {
-      try {
-        let { email, password } = await req.json() as any;
-        email = email.toLowerCase().trim();
-
-        console.log(`[LOGIN] Attempt: ${email}`);
-        const user = db.query("SELECT * FROM users WHERE email = ?").get(email) as any;
-
-        if (!user) {
-          console.warn(`[LOGIN] Not Found: ${email}`);
-          return new Response(JSON.stringify({ error: "No user found with this email" }), { status: 401, headers });
-        }
-
-        const isMatch = await Bun.password.verify(password, user.password_hash);
-        if (!isMatch) {
-          console.warn(`[LOGIN] Wrong Password: ${email}`);
-          return new Response(JSON.stringify({ error: "Incorrect password" }), { status: 401, headers });
-        }
-
-        console.log(`[LOGIN] Success: ${email}`);
-        const token = jwt.sign({ id: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: "7d" });
-
-        // Fetch User Config
-        const config = db.query("SELECT * FROM user_configs WHERE user_id = ?").get(user.id) || {};
-
-        return new Response(JSON.stringify({ token, user: { id: user.id, name: user.name, email: user.email }, config }), { headers });
-      } catch (error) {
-        console.error("[LOGIN] Error:", error);
-        return new Response(JSON.stringify({ error: "Internal server error during login" }), { status: 500, headers });
-      }
+    // --- API: Auth (DEPRECATED - Moved to Supabase Frontend) ---
+    if (url.pathname.startsWith("/api/auth/")) {
+      return new Response(JSON.stringify({ error: "Deprecated. Use Supabase SDK on frontend." }), { status: 410, headers });
     }
 
     // --- API: User Config (Get/Update) ---
     if (url.pathname === "/api/user/config" && req.method === "POST") {
       try {
-        // Authenticate
-        const authHeader = req.headers.get("Authorization");
-        if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
-        const token = authHeader.split(" ")[1];
-        const decoded = jwt.verify(token, JWT_SECRET as string) as any;
-        const userId = decoded.id;
+        const user = await authenticate(req);
+        if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
+        const userId = user.id;
 
         const { voice_provider, voice_id, stt_language } = await req.json() as any;
 
-        // Upsert Config
-        const upsert = db.prepare(`
-          INSERT INTO user_configs (user_id, voice_provider, voice_id, stt_language)
-          VALUES (?, ?, ?, ?)
-          ON CONFLICT(user_id) DO UPDATE SET
-            voice_provider = excluded.voice_provider,
-            voice_id = excluded.voice_id,
-            stt_language = excluded.stt_language
-        `);
+        // Upsert Config in Postgres
+        const [current] = await sql`SELECT * FROM user_configs WHERE user_id = ${userId}`;
+        const config = {
+          user_id: userId,
+          voice_provider: voice_provider || current?.voice_provider || 'elevenlabs',
+          voice_id: voice_id || current?.voice_id,
+          stt_language: stt_language || current?.stt_language || 'en-IN'
+        };
 
-        const current = db.query("SELECT * FROM user_configs WHERE user_id = ?").get(userId) as any || {};
-        upsert.run(
-          userId,
-          voice_provider || current.voice_provider || 'elevenlabs',
-          voice_id || current.voice_id,
-          stt_language || current.stt_language || 'en-IN'
-        );
+        await sql`
+          INSERT INTO user_configs ${sql(config)}
+          ON CONFLICT (user_id) DO UPDATE SET
+            voice_provider = EXCLUDED.voice_provider,
+            voice_id = EXCLUDED.voice_id,
+            stt_language = EXCLUDED.stt_language
+        `;
 
         return new Response(JSON.stringify({ message: "Config updated" }), { headers });
       } catch (error) {
+        console.error("[CONFIG] Error:", error);
         return new Response(JSON.stringify({ error: "Failed to update config" }), { status: 500, headers });
       }
     }
@@ -280,45 +247,96 @@ const server = serve({
     // --- API: Conversations (List/Create) ---
     if (url.pathname === "/api/conversations" && req.method === "GET") {
       try {
-        const authHeader = req.headers.get("Authorization");
-        if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
+        const user = await authenticate(req);
+        if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
+        const userId = user.id;
 
-        const token = authHeader.split(" ")[1];
-        const decoded = jwt.verify(token, JWT_SECRET as string) as any;
-        const userId = decoded.id;
-
-        const conversations = db.query("SELECT * FROM conversations WHERE user_id = ? ORDER BY created_at DESC").all(userId);
+        const conversations = await sql`SELECT * FROM conversations WHERE user_id = ${userId} ORDER BY created_at DESC`;
         return new Response(JSON.stringify(conversations), { headers });
       } catch (e) {
         return new Response(JSON.stringify({ error: "Failed to fetch conversations" }), { status: 500, headers });
       }
     }
 
+    if (url.pathname === "/api/conversations" && req.method === "DELETE") {
+      try {
+        const user = await authenticate(req);
+        if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
+        const userId = user.id;
+
+        const id = url.searchParams.get("id");
+        if (!id) return new Response(JSON.stringify({ error: "Missing ID" }), { status: 400, headers });
+
+        // Verify ownership
+        const [conv] = await sql`SELECT * FROM conversations WHERE id = ${id} AND user_id = ${userId}`;
+        if (!conv) return new Response(JSON.stringify({ error: "Not found or access denied" }), { status: 403, headers });
+
+        await sql`DELETE FROM conversations WHERE id = ${id}`;
+        return new Response(JSON.stringify({ message: "Deleted" }), { headers });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: "Delete failed" }), { status: 500, headers });
+      }
+    }
+
+    if (url.pathname === "/api/conversations" && req.method === "PUT") {
+      try {
+        const user = await authenticate(req);
+        if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
+        const userId = user.id;
+
+        const data = await req.json() as any;
+        const { id, title } = data;
+        if (!id || !title) return new Response(JSON.stringify({ error: "Missing ID or Title" }), { status: 400, headers });
+
+        // Verify ownership
+        const [conv] = await sql`SELECT * FROM conversations WHERE id = ${id} AND user_id = ${userId}`;
+        if (!conv) return new Response(JSON.stringify({ error: "Not found or access denied" }), { status: 403, headers });
+
+        await sql`UPDATE conversations SET title = ${title} WHERE id = ${id}`;
+        return new Response(JSON.stringify({ message: "Updated" }), { headers });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: "Update failed" }), { status: 500, headers });
+      }
+    }
+
     if (url.pathname === "/api/conversations" && req.method === "POST") {
       try {
-        const authHeader = req.headers.get("Authorization");
-        if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
-        const token = authHeader.split(" ")[1];
-        const decoded = jwt.verify(token, JWT_SECRET as string) as any;
-        const userId = decoded.id;
+        const user = await authenticate(req);
+        if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
+        const userId = user.id;
 
-        const { title } = await req.json() as any;
-        const insert = db.prepare("INSERT INTO conversations (user_id, title) VALUES (?, ?)");
-        const result = insert.run(userId, title || "New Chat");
+        const data = await req.json() as any;
+        const { title } = data;
+        const [result] = await sql`INSERT INTO conversations (user_id, title) VALUES (${userId}, ${title || "New Chat"}) RETURNING id`;
 
-        return new Response(JSON.stringify({ id: result.lastInsertRowid, title: title || "New Chat" }), { headers });
+        if (!result) throw new Error("Failed to insert conversation");
+
+        return new Response(JSON.stringify({ id: result.id, title: title || "New Chat" }), { headers });
       } catch (e) {
+        console.error("Failed to create conversation:", e);
         return new Response(JSON.stringify({ error: "Failed to create conversation" }), { status: 500, headers });
       }
     }
 
     // --- API: Messages (Get) ---
     if (url.pathname.startsWith("/api/messages") && req.method === "GET") {
-      const conversationId = url.searchParams.get("conversation_id");
-      if (!conversationId) return new Response(JSON.stringify({ error: "Missing conversation_id" }), { status: 400, headers });
+      try {
+        const user = await authenticate(req);
+        if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
+        const userId = user.id;
 
-      const msgs = db.query("SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC").all(conversationId);
-      return new Response(JSON.stringify(msgs), { headers });
+        const conversationId = url.searchParams.get("conversation_id");
+        if (!conversationId) return new Response(JSON.stringify({ error: "Missing conversation_id" }), { status: 400, headers });
+
+        // Verify ownership of the conversation
+        const [conv] = await sql`SELECT * FROM conversations WHERE id = ${conversationId} AND user_id = ${userId}`;
+        if (!conv) return new Response(JSON.stringify({ error: "Not found or access denied" }), { status: 403, headers });
+
+        const msgs = await sql`SELECT * FROM messages WHERE conversation_id = ${conversationId} ORDER BY created_at ASC`;
+        return new Response(JSON.stringify(msgs), { headers });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: "Failed to fetch messages" }), { status: 500, headers });
+      }
     }
 
     // --- API: TTS (Multi-Provider) ---
@@ -422,14 +440,23 @@ const server = serve({
     // --- API: Chat with RAG (Updated) ---
     if (url.pathname === "/api/chat" && req.method === "POST") {
       try {
+        const user = await authenticate(req);
+        if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
+        const userId = user.id;
+
         const body = await req.json() as { message: string, history: any[], conversation_id?: number, language?: string };
         const { message, history, conversation_id, language = 'en' } = body;
 
-        // Persist User Message if conversation_id exists
+        // Persist User Message if conversation_id exists & belongs to user
         if (conversation_id) {
           try {
-            const insertMsg = db.prepare("INSERT INTO messages (conversation_id, role, content) VALUES (?, 'user', ?)");
-            insertMsg.run(conversation_id, message);
+            // Verify ownership
+            const [conv] = await sql`SELECT * FROM conversations WHERE id = ${conversation_id} AND user_id = ${userId}`;
+            if (conv) {
+              await sql`INSERT INTO messages (conversation_id, role, content) VALUES (${conversation_id}, 'user', ${message || ""})`;
+            } else {
+              console.warn(`[CHAT] Unauthorized access attempt for conversation ${conversation_id} by user ${userId}`);
+            }
           } catch (e) { console.error("Failed to save user message", e); }
         }
 
@@ -507,8 +534,7 @@ ${contextString}
         // Persist AI Message if conversation_id exists
         if (conversation_id) {
           try {
-            const insertMsg = db.prepare("INSERT INTO messages (conversation_id, role, content) VALUES (?, 'ai', ?)");
-            insertMsg.run(conversation_id, response);
+            await sql`INSERT INTO messages (conversation_id, role, content) VALUES (${conversation_id}, 'ai', ${response || ""})`;
           } catch (e) { console.error("Failed to save ai message", e); }
         }
 

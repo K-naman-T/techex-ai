@@ -1,0 +1,16 @@
+.git
+.gitignore
+node_modules
+.env
+techex.sqlite
+techex.sqlite-journal
+data/*.json
+!google-credentials.json
+dist
+.vscode
+.idea
+.agent
+brain
+logs
+temp
+tmp

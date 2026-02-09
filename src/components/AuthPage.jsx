@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Bot, Lock, Mail, User, ArrowRight, Loader2 } from 'lucide-react';
+import { Bot, Lock, Mail, User, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 
 export default function AuthPage() {
     const navigate = useNavigate();
@@ -9,22 +9,29 @@ export default function AuthPage() {
     const { login, signup } = useAuth();
     const [formData, setFormData] = useState({ email: '', password: '', name: '' });
     const [error, setError] = useState('');
+    const [successMsg, setSuccessMsg] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setSuccessMsg('');
         setIsLoading(true);
         try {
             if (isLogin) {
                 await login(formData.email, formData.password);
+                navigate('/');
             } else {
-                await signup(formData.email, formData.password, formData.name);
-                // Auto login after signup
-                await login(formData.email, formData.password);
+                const data = await signup(formData.email, formData.password, formData.name);
+                if (data?.session) {
+                    // Logged in immediately
+                    navigate('/');
+                } else {
+                    // Confirmation email sent
+                    setSuccessMsg("Check your email to confirm your account!");
+                    setIsLogin(true);
+                }
             }
-            // Redirect to main app after successful auth
-            navigate('/');
         } catch (err) {
             setError(err.message || "Authentication failed");
         } finally {
@@ -98,6 +105,13 @@ export default function AuthPage() {
                         </div>
                     )}
 
+                    {successMsg && (
+                        <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm text-center flex items-center justify-center gap-2">
+                            <CheckCircle2 size={16} />
+                            {successMsg}
+                        </div>
+                    )}
+
                     <button
                         type="submit"
                         disabled={isLoading}
@@ -118,7 +132,7 @@ export default function AuthPage() {
                     <p className="text-gray-400 text-sm">
                         {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
                         <button
-                            onClick={() => { setIsLogin(!isLogin); setError(''); }}
+                            onClick={() => { setIsLogin(!isLogin); setError(''); setSuccessMsg(''); }}
                             className="text-cyan-400 hover:text-cyan-300 font-medium hover:underline transition-colors"
                         >
                             {isLogin ? 'Sign Up' : 'Sign In'}

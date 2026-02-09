@@ -14,7 +14,7 @@ export default defineConfig({
     host: true, // Listen on all network interfaces (0.0.0.0)
     proxy: {
       '/api': {
-        target: 'http://localhost:3005',
+        target: 'http://127.0.0.1:3005',
         changeOrigin: true,
         secure: false,
       }

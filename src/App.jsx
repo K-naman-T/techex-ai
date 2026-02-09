@@ -9,6 +9,8 @@ import { AppHeader } from './components/ui/AppHeader';
 import { ChatLayer, FocusOverlay } from './components/ui/ChatLayer';
 import { BottomControlBar } from './components/ui/BottomControlBar';
 import { MapModal } from './components/ui/MapModal';
+import { Loader } from './components/ui/Loader';
+import { ChatSidebar } from './components/ui/ChatSidebar';
 
 // Hooks
 import { useTTS } from './hooks/useTTS';
@@ -41,6 +43,7 @@ function AppLayout() {
 
   // UI State
   const [showSettings, setShowSettings] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [mapTarget, setMapTarget] = useState(null);
 
@@ -49,7 +52,7 @@ function AppLayout() {
   const [conversations, setConversations] = useState([]);
 
   // Hooks
-  const { stop, isSpeaking, queueSentence, provider, setProvider, analyser } = useTTS();
+  const { stop, isSpeaking, queueSentence, provider, setProvider, analyser, warmup } = useTTS();
   const {
     isListening,
     transcript,
@@ -86,7 +89,7 @@ function AppLayout() {
   const loadConversations = async () => {
     try {
       const res = await fetch('/api/conversations', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer guest-token` }
       });
       const data = await res.json();
       if (res.ok && data.length > 0) {
@@ -104,13 +107,15 @@ function AppLayout() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer guest-token`
         },
         body: JSON.stringify({ title: "New Chat" })
       });
       const data = await res.json();
       setConversationId(data.id);
       setMessages([]);
+      // Update sidebar instantly
+      setConversations(prev => [data, ...prev]);
     } catch (e) { console.error("New chat failed", e); }
   };
 
@@ -118,21 +123,39 @@ function AppLayout() {
     setConversationId(id);
     try {
       const res = await fetch(`/api/messages?conversation_id=${id}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer guest-token` }
       });
       const data = await res.json();
       if (res.ok) {
         const uiMsgs = data.map(m => ({
-          type: m.role === 'user' ? 'user' : 'bot',
-          text: m.content
+          role: m.role === 'user' ? 'user' : 'ai',
+          content: m.content
         }));
         setMessages(uiMsgs);
       }
     } catch (e) { console.error("Load msgs failed", e); }
   };
 
+  const handleChatDelete = async (id) => {
+    if (!window.confirm("Delete this conversation?")) return;
+    try {
+      const res = await fetch(`/api/conversations?id=${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer guest-token` }
+      });
+      if (res.ok) {
+        setConversations(prev => prev.filter(c => c.id !== id));
+        if (conversationId === id) {
+          setConversationId(null);
+          setMessages([]);
+        }
+      }
+    } catch (e) { console.error("Delete failed", e); }
+  };
+
   // === Handlers ===
   const handleMicClick = () => {
+    warmup(); // Pre-warm audio context
     isListening ? stopListening() : startListening();
   };
 
@@ -141,10 +164,27 @@ function AppLayout() {
   const handleSend = async (text = input) => {
     if (!text.trim() || loading) return;
 
+    warmup(); // Pre-warm audio context for faster TTS start
     const userMsg = { role: 'user', content: text };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
+
+    // Auto-Title Logic: If this is the first message (messages.length === 0/1 after add), update title
+    if (messages.length === 0 && conversationId) {
+      const title = text.length > 30 ? text.substring(0, 27) + "..." : text;
+      // Update local state IMMEDIATELY for UI responsiveness
+      setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, title } : c));
+
+      fetch('/api/conversations', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer guest-token`
+        },
+        body: JSON.stringify({ id: conversationId, title })
+      }).catch(e => console.error("Auto-title failed", e));
+    }
 
     const aiMsgId = Date.now();
     setMessages(prev => [...prev, { role: 'ai', content: '...', id: aiMsgId }]);
@@ -168,9 +208,10 @@ function AppLayout() {
             msg.id === aiMsgId ? { ...msg, content: fullResponse } : msg
           ));
 
-          // Safety fallback: if for some reason TTS doesn't trigger isSpeaking, 
-          // stop loading after a reasonable delay (5s)
-          setTimeout(() => setLoading(false), 5000);
+          // Safety fallback: If TTS fails to start within 10s of text completion, clear loading
+          setTimeout(() => {
+            setLoading(prev => prev ? false : false); // Only if still true
+          }, 10000);
         },
         conversationId,
         messages, // Pass history for context
@@ -183,20 +224,30 @@ function AppLayout() {
           ? { ...msg, content: "I'm having trouble connecting to the network." }
           : msg
       ));
-    } finally {
-      setLoading(false);
+      setLoading(false); // Clear loading on error
     }
   };
 
   // === Render ===
   return (
     <div className="relative h-[100dvh] w-full bg-[#050505] overflow-hidden font-sans selection:bg-cyan-500/30">
-
+      <Loader />
       {/* 3D Avatar Scene */}
       <Scene3D isSpeaking={isSpeaking} analyser={analyser} />
 
       {/* Focus Overlay */}
       <FocusOverlay isFocused={isChatFocused} />
+
+      {/* Chat Sidebar */}
+      <ChatSidebar
+        isOpen={showSidebar}
+        onClose={() => setShowSidebar(false)}
+        conversations={conversations}
+        activeId={conversationId}
+        onSelect={selectConversation}
+        onNewChat={createConversation}
+        onDeleteChat={handleChatDelete}
+      />
 
       {/* Header */}
       <AppHeader
@@ -209,6 +260,7 @@ function AppLayout() {
         sttLanguage={language}
         setSttLanguage={setLanguage}
         onLogout={logout}
+        onToggleSidebar={() => setShowSidebar(!showSidebar)}
       />
 
       {/* Floating Chat */}
@@ -252,12 +304,7 @@ export default function App() {
     <Router>
       <AuthProvider>
         <Routes>
-          <Route path="/auth" element={<AuthPage />} />
-          <Route path="/" element={
-            <ProtectedRoute>
-              <AppLayout />
-            </ProtectedRoute>
-          } />
+          <Route path="/*" element={<AppLayout />} />
         </Routes>
       </AuthProvider>
     </Router>

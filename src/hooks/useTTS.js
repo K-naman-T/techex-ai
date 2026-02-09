@@ -6,11 +6,11 @@ export const useTTS = () => {
   const audioContextRef = useRef(null);
   const sourceNodeRef = useRef(null);
   const sentenceQueueRef = useRef([]);
+  const audioBufferQueueRef = useRef([]); // Stores promises of processed AudioBuffers
   const isProcessingRef = useRef(false);
-
   const analyserRef = useRef(null);
 
-  const getAudioContext = () => {
+  const getAudioContext = useCallback(() => {
     if (!audioContextRef.current) {
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       audioContextRef.current = new AudioContextClass();
@@ -24,7 +24,14 @@ export const useTTS = () => {
       audioContextRef.current.resume();
     }
     return audioContextRef.current;
-  };
+  }, []);
+
+  const warmup = useCallback(() => {
+    try {
+      getAudioContext();
+      console.log("[TTS] AudioContext warmed up.");
+    } catch (e) { console.error("Warmup failed", e); }
+  }, [getAudioContext]);
 
   const stop = useCallback(() => {
     if (sourceNodeRef.current) {
@@ -32,22 +39,26 @@ export const useTTS = () => {
       sourceNodeRef.current = null;
     }
     sentenceQueueRef.current = [];
+    audioBufferQueueRef.current = [];
     isProcessingRef.current = false;
     setIsSpeaking(false);
   }, []);
 
-  // Internal function to play a single audio buffer
-  const playAudioBuffer = useCallback(async (text) => {
+  // Internal function to fetch and decode audio for a sentence
+  const fetchAudioBuffer = useCallback(async (text) => {
     try {
       const response = await fetch('/api/tts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer guest-token'
+        },
         body: JSON.stringify({ text, provider }),
       });
 
       if (!response.ok) {
         console.error("TTS Backend Error");
-        return;
+        return null;
       }
 
       const data = await response.json();
@@ -61,59 +72,62 @@ export const useTTS = () => {
       }
 
       const ctx = getAudioContext();
-      const audioBuffer = await ctx.decodeAudioData(bytes.buffer);
-
-      return new Promise((resolve) => {
-        const source = ctx.createBufferSource();
-        source.buffer = audioBuffer;
-
-        // Connect source to Analyser instead of ctx.destination
-        source.connect(analyserRef.current);
-
-        // Only set isSpeaking TRUE when audio actually starts
-        setIsSpeaking(true);
-
-        source.onended = () => {
-          resolve();
-        };
-        sourceNodeRef.current = source;
-        source.start(0);
-      });
+      return await ctx.decodeAudioData(bytes.buffer);
     } catch (error) {
-      console.error("Audio Playback Error:", error);
+      console.error("Audio Fetch/Decode Error:", error);
+      return null;
     }
-  }, [provider]);
+  }, [getAudioContext, provider]);
 
-  // Process the sentence queue sequentially
+  // Process the buffer queue sequentially for playback
   const processQueue = useCallback(async () => {
     if (isProcessingRef.current) return;
     isProcessingRef.current = true;
 
-    while (sentenceQueueRef.current.length > 0) {
-      const sentence = sentenceQueueRef.current.shift();
-      if (sentence) {
-        await playAudioBuffer(sentence);
+    while (audioBufferQueueRef.current.length > 0) {
+      const bufferPromise = audioBufferQueueRef.current.shift();
+      const audioBuffer = await bufferPromise;
+
+      if (audioBuffer) {
+        await new Promise((resolve) => {
+          const ctx = getAudioContext();
+          const source = ctx.createBufferSource();
+          source.buffer = audioBuffer;
+
+          source.connect(analyserRef.current);
+          setIsSpeaking(true);
+
+          source.onended = () => {
+            resolve();
+          };
+          sourceNodeRef.current = source;
+          source.start(0);
+        });
       }
     }
 
     isProcessingRef.current = false;
     setIsSpeaking(false);
-  }, [playAudioBuffer]);
+  }, [getAudioContext]);
 
-  // Queue a sentence for TTS playback
+  // Queue a sentence: Immediately start fetching and then process playback
   const queueSentence = useCallback((sentence) => {
     if (!sentence || !sentence.trim()) return;
-    sentenceQueueRef.current.push(sentence);
+
+    // Start fetching audio immediately and store the promise
+    const bufferPromise = fetchAudioBuffer(sentence);
+    audioBufferQueueRef.current.push(bufferPromise);
+
+    // Trigger sequential playback loop
     processQueue();
-  }, [processQueue]);
+  }, [fetchAudioBuffer, processQueue]);
 
   // Original speak function (speaks entire text at once)
   const speak = useCallback(async (text) => {
     stop();
     if (!text) return;
-    sentenceQueueRef.current.push(text);
-    processQueue();
-  }, [stop, processQueue]);
+    queueSentence(text);
+  }, [stop, queueSentence]);
 
   useEffect(() => {
     return () => {
@@ -125,6 +139,7 @@ export const useTTS = () => {
   return {
     speak,
     stop,
+    warmup,
     isSpeaking,
     queueSentence,
     provider,
