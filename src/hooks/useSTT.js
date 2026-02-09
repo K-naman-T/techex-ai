@@ -63,7 +63,15 @@ export const useSTT = () => {
 
         recognition.onerror = (event) => {
             console.error('Speech Recognition Error:', event.error);
-            setError(event.error);
+            let userFriendlyError = event.error;
+
+            if (event.error === 'network') {
+                userFriendlyError = 'Network Error: Browser speech services are unreachable. Ensure you have internet and are using HTTPS or localhost.';
+            } else if (event.error === 'not-allowed') {
+                userFriendlyError = 'Permission Denied: Mic access was blocked by the browser.';
+            }
+
+            setError(userFriendlyError);
             setIsListening(false);
         };
 
