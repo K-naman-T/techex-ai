@@ -22,8 +22,8 @@ COPY --from=build /app/server.ts ./
 # Knowledge Base data
 COPY data ./data
 
-EXPOSE 3000
-ENV PORT=3000
+EXPOSE 3005
+ENV PORT=3005
 ENV NODE_ENV=production
 
 CMD ["bun", "run", "server.ts"]

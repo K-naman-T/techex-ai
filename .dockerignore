@@ -8,5 +8,8 @@ logs
 server.log
 google-credentials.json
 tmp-google-credentials.json
-*.png
-*.jpg
+
+# Only ignore top-level screenshots/unnecessary images
+/image*.png
+/image*.jpg
+/architecture.mmd
