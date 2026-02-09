@@ -16,19 +16,22 @@ RUN bun run build
 FROM oven/bun:1.1.38-slim
 WORKDIR /app
 
-# Use the built-in 'bun' non-root user for security
-USER bun
-
-# Copy only production dependencies manifest
-COPY --chown=bun:bun package.json bun.lock* ./
+# Copy only production dependencies manifest and install as root first
+COPY package.json bun.lock* ./
 RUN bun install --production --frozen-lockfile
 
 # Copy pre-built frontend and server source
-COPY --chown=bun:bun --from=build /app/dist ./dist
-COPY --chown=bun:bun --from=build /app/server.ts ./
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/server.ts ./
 
 # Copy Knowledge Base data
-COPY --chown=bun:bun data ./data
+COPY data ./data
+
+# Change ownership to bun user for security AFTER all files are copied
+RUN chown -R bun:bun /app
+
+# Switch to non-root user
+USER bun
 
 # Render assigns PORT dynamically. We expose a default for local testing.
 EXPOSE 10000
