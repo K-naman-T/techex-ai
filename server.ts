@@ -7,16 +7,20 @@ import { Buffer } from "node:buffer";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const DB_PATH = path.join(process.cwd(), "data", "db.json");
-const API_KEY = process.env.VITE_GEMINI_API_KEY;
+
+// --- SECURITY: Backend-only secrets use non-VITE_ names ---
+// VITE_ prefix bakes values into the JS bundle, exposing them in DevTools.
+// Only Supabase URL/AnonKey (designed to be public) keep VITE_ prefix.
+const API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY || "");
 if (!API_KEY) {
-  console.error("Error: VITE_GEMINI_API_KEY is missing in .env");
+  console.error("Error: GEMINI_API_KEY is missing in .env");
   process.exit(1);
 } else {
-  console.log(`[INIT] Gemini API Key found: ${API_KEY.substring(0, 4)}...${API_KEY.substring(API_KEY.length - 4)}`);
+  console.log(`[INIT] Gemini API Key loaded (${API_KEY.substring(0, 4)}...${API_KEY.substring(API_KEY.length - 4)})`);
 }
-const ELEVENLABS_API_KEY = process.env.VITE_ELEVENLABS_API_KEY || "";
-const SARVAM_API_KEY = process.env.VITE_SARVAM_API_KEY || "";
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || process.env.VITE_ELEVENLABS_API_KEY || "";
+const SARVAM_API_KEY = process.env.SARVAM_API_KEY || process.env.VITE_SARVAM_API_KEY || "";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -34,11 +38,14 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // --- Database Setup (PostgreSQL) ---
+// PRODUCTION: Use PgBouncer pooler URL (port 6543) for Cloud Run multi-instance.
+// max:3 per instance × 10 instances = 30 connections (well within Supabase limits).
 const sql = postgres(DATABASE_URL, {
-  ssl: 'require', // Required for Supabase
-  max: 10,
+  ssl: 'require',
+  max: 3,
   idle_timeout: 20,
   connect_timeout: 10,
+  prepare: false,  // Required for PgBouncer transaction mode
 });
 
 // Initialize Schema (using Postgres syntax with UUID as TEXT)
@@ -108,79 +115,9 @@ async function authenticate(req: Request) {
   return GUEST_USER;
 }
 
-// --- RAG: Vector Store Implementation ---
-class LocalVectorStore {
-  documents: any[] = [];
-  embeddings: number[][] = [];
-
-  constructor() { }
-
-  similarity(vecA: number[], vecB: number[]) {
-    if (!vecA || !vecB || vecA.length === 0 || vecA.length !== vecB.length) return 0;
-    let dot = 0;
-    let normA = 0;
-    let normB = 0;
-    for (let i = 0; i < vecA.length; i++) {
-      const a = vecA[i] ?? 0;
-      const b = vecB[i] ?? 0;
-      dot += a * b;
-      normA += a * a;
-      normB += b * b;
-    }
-    const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
-    return magnitude === 0 ? 0 : dot / magnitude;
-  }
-
-  async addDocuments(docs: any[]) {
-    this.documents = docs;
-    console.log(`[RAG] Generating embeddings for ${docs.length} documents...`);
-
-    for (const doc of docs) {
-      const textToEmbed = `Title: ${doc.title}. Category: ${doc.category}. Description: ${doc.description}. Keywords: ${doc.team_name}`;
-      try {
-        const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
-        const result = await model.embedContent(textToEmbed);
-        const embedding = result.embedding.values;
-
-        if (embedding) {
-          this.embeddings.push(embedding);
-        } else {
-          console.warn("[RAG] Failed to embed:", doc.title);
-          this.embeddings.push(new Array(768).fill(0));
-        }
-      } catch (e) {
-        console.error("[RAG] Embedding Error:", e);
-        this.embeddings.push([]);
-      }
-      // Small delay to avoid rate limits on startup
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    console.log(`[RAG] Indexing complete.`);
-  }
-
-  async search(query: string, topK: number = 3) {
-    try {
-      const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
-      const result = await model.embedContent(query);
-      const queryEmbedding = result.embedding.values;
-
-      if (!queryEmbedding) return [];
-
-      const scores = this.embeddings.map((emb, idx) => ({
-        index: idx,
-        score: this.similarity(queryEmbedding, emb)
-      }));
-
-      scores.sort((a, b) => b.score - a.score);
-      return scores.slice(0, topK).map(s => this.documents[s.index]);
-    } catch (e) {
-      console.error("[RAG] Search Error:", e);
-      return [];
-    }
-  }
-}
-
-const vectorStore = new LocalVectorStore();
+// --- Knowledge Base (Direct Context Injection) ---
+// Removed RAG VectorStore class — Direct injection is faster and 100% reliable
+// for datasets under 100 items. Saves ~2s per message by eliminating embedding API calls.
 let eventInfo: any = {};
 
 let projectsContext: string = "";
@@ -590,5 +527,17 @@ ${contextString}
   },
 });
 
-console.log(`Server running at http://localhost:${server.port}`);
-console.log(`Accessible on network at http://10.118.106.21:${server.port}`);
+console.log(`[SERVER] Running on http://0.0.0.0:${server.port}`);
+
+// --- PRODUCTION: Graceful Shutdown for Cloud Run ---
+// Cloud Run sends SIGTERM when scaling down or deploying new revisions.
+// Without this, in-flight DB queries can corrupt or hang.
+process.on("SIGTERM", async () => {
+  console.log("[SHUTDOWN] SIGTERM received. Closing DB connections...");
+  await sql.end({ timeout: 5 });
+  console.log("[SHUTDOWN] Clean exit.");
+  process.exit(0);
+});
+
+// Start KB initialization in background (non-blocking)
+initKnowledgeBase();

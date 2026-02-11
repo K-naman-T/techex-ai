@@ -2,21 +2,14 @@
 FROM oven/bun:1.1.38 AS build
 WORKDIR /app
 
-# Declare build arguments for Vite (Required for Render to pass them into the build stage)
+# Only frontend env vars needed at build time (Supabase client in React)
+# Backend secrets (Gemini, Sarvam, ElevenLabs) are injected at RUNTIME only.
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_ANON_KEY
-ARG VITE_GEMINI_API_KEY
-ARG VITE_SARVAM_API_KEY
-ARG VITE_ELEVENLABS_API_KEY
-
-# Set them as environment variables for the build process
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
-ENV VITE_GEMINI_API_KEY=$VITE_GEMINI_API_KEY
-ENV VITE_SARVAM_API_KEY=$VITE_SARVAM_API_KEY
-ENV VITE_ELEVENLABS_API_KEY=$VITE_ELEVENLABS_API_KEY
 
-# Install dependencies first (for better layer caching)
+# Install dependencies first (layer caching)
 COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile
 
@@ -29,7 +22,7 @@ RUN bun run build
 FROM oven/bun:1.1.38-slim
 WORKDIR /app
 
-# Install production dependencies
+# Install production dependencies only
 COPY package.json bun.lock* ./
 RUN bun install --production --frozen-lockfile
 
@@ -40,8 +33,8 @@ COPY --from=build /app/server.ts ./
 # Copy Knowledge Base data
 COPY data ./data
 
-# Render assigns PORT dynamically
-EXPOSE 10000
 ENV NODE_ENV=production
+# Cloud Run uses 8080 by default; Render uses PORT env var
+EXPOSE 8080
 
 CMD ["bun", "run", "server.ts"]
