@@ -1,145 +1,218 @@
 import React from 'react';
 import { X, Navigation } from 'lucide-react';
 
+const STALL_POSITIONS = {
+  '3': { x: 80, y: 530, theme: 'purple' },
+  '2': { x: 137, y: 530, theme: 'purple' },
+  '1': { x: 194, y: 530, theme: 'purple' },
+  '4': { x: 80, y: 485, theme: 'purple' },
+  '5': { x: 80, y: 440, theme: 'purple' },
+  '6': { x: 80, y: 395, theme: 'purple' },
+  '7': { x: 80, y: 350, theme: 'purple' },
+  '8': { x: 80, y: 305, theme: 'purple' },
+  '9': { x: 80, y: 260, theme: 'green' },
+  '10': { x: 80, y: 215, theme: 'green' },
+  '11': { x: 80, y: 170, theme: 'green' },
+  '12': { x: 80, y: 125, theme: 'green' },
+  '13': { x: 137, y: 80, theme: 'gold' },
+  '14': { x: 194, y: 80, theme: 'gold' },
+  '15': { x: 651, y: 80, theme: 'gold' },
+  '16': { x: 708, y: 80, theme: 'gold' },
+  '17': { x: 765, y: 125, theme: 'red' },
+  '18': { x: 765, y: 195, theme: 'red' },
+  '19': { x: 765, y: 240, theme: 'red' },
+  '20': { x: 765, y: 285, theme: 'red' },
+  '21': { x: 765, y: 330, theme: 'red' },
+  '22': { x: 765, y: 375, theme: 'teal' },
+  '23': { x: 765, y: 440, theme: 'teal' },
+  '24': { x: 765, y: 485, theme: 'teal' },
+  '25': { x: 708, y: 530, theme: 'teal' },
+  '26': { x: 651, y: 530, theme: 'teal' },
+  '27': { x: 594, y: 530, theme: 'teal' },
+  '28': { x: 545, y: 350, theme: 'teal' },
+  '29': { x: 545, y: 305, theme: 'red' },
+  '30': { x: 545, y: 260, theme: 'red' },
+  '31': { x: 545, y: 215, theme: 'red' },
+  '32': { x: 300, y: 350, theme: 'purple' },
+  '33': { x: 300, y: 305, theme: 'purple' },
+  '34': { x: 300, y: 260, theme: 'green' },
+  '35': { x: 300, y: 215, theme: 'green' }
+};
+
+const EMPTY_STALLS = [
+  { x: 80, y: 80 },
+  { x: 765, y: 80 },
+  { x: 765, y: 530 }
+];
+
+const THEME_COLORS = {
+  purple: '#9333ea',
+  green: '#22c55e',
+  gold: '#ca8a04',
+  red: '#ef4444',
+  teal: '#06b6d4',
+  empty: '#1f2937'
+};
+
 export const MapModal = ({ isOpen, onClose, targetStall }) => {
     if (!isOpen) return null;
 
-    // Simple mapping logic: Stall ID (e.g., "A-101") -> Position
     const getPinPosition = (stall) => {
-        if (!stall) return { x: 400, y: 300 };
+        if (!stall) return { x: 450, y: 325 };
+
+        const cleanStall = stall.replace(/^[A-Z]-/, '');
+        
+        if (STALL_POSITIONS[cleanStall]) {
+            const pos = STALL_POSITIONS[cleanStall];
+            return { x: pos.x + 27.5, y: pos.y + 21.5 };
+        }
 
         const zone = stall.charAt(0).toUpperCase();
-
-        // Coords based on 800x600 viewBox
         switch (zone) {
-            case 'A': return { x: 200, y: 175 };
-            case 'B': return { x: 600, y: 175 };
-            case 'C': return { x: 200, y: 425 };
-            case 'D': return { x: 600, y: 425 };
-            default: return { x: 400, y: 300 };
+            case 'A': return { x: 220, y: 280 };
+            case 'B': return { x: 680, y: 280 };
+            case 'C': return { x: 220, y: 150 };
+            case 'D': return { x: 680, y: 150 };
+            default: return { x: 450, y: 325 };
         }
     };
 
-    // Default User Location (Bottom Center Entrance)
-    const USER_POS = { x: 400, y: 530 };
+    const USER_POS = { x: 450, y: 610 };
     const targetPos = getPinPosition(targetStall);
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-4 animate-in fade-in duration-300">
-
             {/* Modal Container */}
-            <div className="relative w-full max-w-4xl max-h-[95vh] bg-white rounded-xl overflow-hidden shadow-2xl flex flex-col lg:flex-row animate-in zoom-in-95 duration-200">
-
+            <div className="relative w-full max-w-5xl max-h-[95vh] bg-[#0a0a0a] border border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col lg:flex-row animate-in zoom-in-95 duration-200">
+                
                 {/* Close Button */}
                 <button
                     onClick={onClose}
-                    className="absolute top-2 right-2 sm:top-4 sm:right-4 z-20 p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition-all"
+                    className="absolute top-2 right-2 sm:top-4 sm:right-4 z-20 p-2 bg-black/50 hover:bg-white/10 text-gray-400 hover:text-white rounded-full transition-all border border-white/10"
                 >
                     <X size={18} />
                 </button>
 
                 {/* Info Panel */}
-                <div className="p-4 sm:p-6 lg:p-8 lg:w-1/3 border-b lg:border-b-0 lg:border-r border-gray-200 bg-gray-50 flex flex-col justify-center shrink-0">
-                    <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6 text-black">
-                        <Navigation size={20} className="sm:w-6 sm:h-6" />
+                <div className="p-4 sm:p-6 lg:p-8 lg:w-1/3 border-b lg:border-b-0 lg:border-r border-white/10 bg-[#0a0a0a] flex flex-col justify-center shrink-0 text-white">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+                        <Navigation size={20} className="sm:w-6 sm:h-6 text-[#06b6d4]" />
                         <h2 className="text-base sm:text-lg font-bold tracking-tight uppercase">Wayfinding</h2>
                     </div>
 
                     <div className="space-y-4 sm:space-y-6">
                         <div>
                             <span className="text-[10px] sm:text-xs text-gray-400 uppercase font-semibold">Destination</span>
-                            <div className="text-xl sm:text-3xl font-bold text-gray-900 mt-1">{targetStall || "Main Hall"}</div>
+                            <div className="text-xl sm:text-3xl font-bold text-white mt-1">{targetStall || "Main Hall"}</div>
                         </div>
 
-                        <div className="p-3 sm:p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
-                            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-                                Follow the <span className="text-blue-600 font-bold">highlighted path</span> from the Entrance to Zone {targetStall?.charAt(0) || "Center"}.
+                        <div className="p-3 sm:p-4 bg-white/5 border border-white/10 rounded-lg shadow-sm backdrop-blur-sm">
+                            <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                                Follow the <span className="text-[#06b6d4] font-bold">highlighted path</span> from the Entrance to your destination.
                             </p>
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                            <span className="px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-medium bg-blue-50 text-blue-600 rounded-full">Step-free</span>
-                            <span className="px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-medium bg-green-50 text-green-600 rounded-full">~2 min</span>
+                            <span className="px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-medium bg-white/5 border border-white/10 text-gray-300 rounded-full">Step-free</span>
+                            <span className="px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-medium bg-[#22c55e]/10 border border-[#22c55e]/20 text-[#22c55e] rounded-full">~2 min</span>
+                        </div>
+                    </div>
+
+                    {/* Zone Legend */}
+                    <div className="mt-8 pt-6 border-t border-white/10">
+                        <span className="text-[10px] sm:text-xs text-gray-500 uppercase font-semibold mb-3 block">Zones</span>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#9333ea]"></div><span className="text-xs text-gray-400">Productivity</span></div>
+                            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#22c55e]"></div><span className="text-xs text-gray-400">Sustainability</span></div>
+                            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#ca8a04]"></div><span className="text-xs text-gray-400">Cost</span></div>
+                            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#ef4444]"></div><span className="text-xs text-gray-400">Safety</span></div>
+                            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#06b6d4]"></div><span className="text-xs text-gray-400">Reliability</span></div>
                         </div>
                     </div>
                 </div>
 
                 {/* Map View */}
-                <div className="relative bg-white flex-1 min-h-[250px] sm:min-h-[350px] lg:min-h-[400px] overflow-hidden">
-
-                    {/* Map SVG (Inline for better control) */}
+                <div className="relative bg-[#0a0a0a] flex-1 min-h-[300px] sm:min-h-[450px] lg:min-h-[500px] overflow-hidden">
                     <svg
                         className="w-full h-full"
-                        viewBox="0 0 800 600"
+                        viewBox="0 0 900 650"
                         preserveAspectRatio="xMidYMid meet"
                     >
                         {/* Background */}
-                        <rect width="800" height="600" fill="#ffffff" />
+                        <rect width="900" height="650" fill="#0a0a0a" />
 
                         {/* Grid */}
                         <defs>
-                            <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
-                                <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#e5e7eb" strokeWidth="1" />
+                            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#06b6d4" strokeWidth="1" opacity="0.08" />
                             </pattern>
                         </defs>
-                        <rect width="800" height="600" fill="url(#grid)" />
+                        <rect width="900" height="650" fill="url(#grid)" />
 
-                        {/* Outer Walls */}
-                        <rect x="50" y="50" width="700" height="500" rx="4" fill="none" stroke="#374151" strokeWidth="3" />
+                        {/* Central Logo */}
+                        <text x="450" y="325" textAnchor="middle" fill="#ffffff" opacity="0.15" fontSize="48" fontWeight="900" letterSpacing="8" fontFamily="Inter, system-ui, sans-serif">TECH EX</text>
+                        <text x="450" y="380" textAnchor="middle" fill="#ffffff" opacity="0.1" fontSize="32" fontWeight="bold" letterSpacing="12" fontFamily="Inter, system-ui, sans-serif">2026</text>
 
-                        {/* Zone A */}
-                        <g transform="translate(60, 60)">
-                            <rect width="330" height="230" fill="#f3f4f6" stroke="#9ca3af" strokeWidth="2" />
-                            <text x="20" y="30" fontFamily="sans-serif" fontSize="18" fill="#4b5563" fontWeight="bold">ZONE A</text>
-                            <text x="20" y="50" fontFamily="sans-serif" fontSize="11" fill="#6b7280">IOT & DIGITIZATION</text>
+                        {/* Zone Labels */}
+                        <text x="160" y="420" transform="rotate(-90 160 420)" fill={THEME_COLORS.purple} opacity="0.6" fontSize="14" fontWeight="bold" letterSpacing="4" textAnchor="middle" fontFamily="Inter, system-ui, sans-serif">PRODUCTIVITY</text>
+                        <text x="160" y="220" transform="rotate(-90 160 220)" fill={THEME_COLORS.green} opacity="0.6" fontSize="14" fontWeight="bold" letterSpacing="4" textAnchor="middle" fontFamily="Inter, system-ui, sans-serif">SUSTAINABILITY</text>
+                        <text x="450" y="150" fill={THEME_COLORS.gold} opacity="0.6" fontSize="14" fontWeight="bold" letterSpacing="4" textAnchor="middle" fontFamily="Inter, system-ui, sans-serif">COST</text>
+                        <text x="740" y="270" transform="rotate(90 740 270)" fill={THEME_COLORS.red} opacity="0.6" fontSize="14" fontWeight="bold" letterSpacing="4" textAnchor="middle" fontFamily="Inter, system-ui, sans-serif">SAFETY</text>
+                        <text x="740" y="450" transform="rotate(90 740 450)" fill={THEME_COLORS.teal} opacity="0.6" fontSize="14" fontWeight="bold" letterSpacing="4" textAnchor="middle" fontFamily="Inter, system-ui, sans-serif">RELIABILITY</text>
+
+                        {/* Empty Stalls */}
+                        {EMPTY_STALLS.map((pos, idx) => (
+                            <g key={`empty-${idx}`} transform={`translate(${pos.x}, ${pos.y})`}>
+                                <rect width="55" height="43" rx="4" fill={THEME_COLORS.empty} stroke="#374151" strokeWidth="2" />
+                            </g>
+                        ))}
+
+                        {/* Active Stalls */}
+                        {Object.entries(STALL_POSITIONS).map(([id, pos]) => (
+                            <g key={id} transform={`translate(${pos.x}, ${pos.y})`}>
+                                <rect width="55" height="43" rx="4" fill={THEME_COLORS[pos.theme]} opacity="0.9" />
+                                <text x="27.5" y="26.5" textAnchor="middle" fill="#ffffff" fontSize="14" fontWeight="bold" fontFamily="Inter, system-ui, sans-serif">{id}</text>
+                            </g>
+                        ))}
+
+                        {/* ENTRY Marker */}
+                        <g transform="translate(450, 580)">
+                            <path d="M -10 10 L 0 -5 L 10 10" fill="none" stroke="#22c55e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                            <text x="0" y="28" textAnchor="middle" fill="#22c55e" fontSize="12" fontWeight="bold" fontFamily="Inter, system-ui, sans-serif">ENTRY</text>
                         </g>
 
-                        {/* Zone B */}
-                        <g transform="translate(410, 60)">
-                            <rect width="330" height="230" fill="#f3f4f6" stroke="#9ca3af" strokeWidth="2" />
-                            <text x="20" y="30" fontFamily="sans-serif" fontSize="18" fill="#4b5563" fontWeight="bold">ZONE B</text>
-                            <text x="20" y="50" fontFamily="sans-serif" fontSize="11" fill="#6b7280">SAFETY</text>
+                        {/* EXIT Markers */}
+                        <g transform="translate(835, 180)">
+                            <path d="M -10 -8 L 0 0 L -10 8" fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                            <text x="-5" y="22" textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="bold" fontFamily="Inter, system-ui, sans-serif">EXIT</text>
                         </g>
-
-                        {/* Zone C */}
-                        <g transform="translate(60, 310)">
-                            <rect width="330" height="230" fill="#f3f4f6" stroke="#9ca3af" strokeWidth="2" />
-                            <text x="20" y="30" fontFamily="sans-serif" fontSize="18" fill="#4b5563" fontWeight="bold">ZONE C</text>
-                            <text x="20" y="50" fontFamily="sans-serif" fontSize="11" fill="#6b7280">GREEN TECH</text>
+                        <g transform="translate(835, 425)">
+                            <path d="M -10 -8 L 0 0 L -10 8" fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                            <text x="-5" y="22" textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="bold" fontFamily="Inter, system-ui, sans-serif">EXIT</text>
                         </g>
-
-                        {/* Zone D */}
-                        <g transform="translate(410, 310)">
-                            <rect width="330" height="230" fill="#f3f4f6" stroke="#9ca3af" strokeWidth="2" />
-                            <text x="20" y="30" fontFamily="sans-serif" fontSize="18" fill="#4b5563" fontWeight="bold">ZONE D</text>
-                            <text x="20" y="50" fontFamily="sans-serif" fontSize="11" fill="#6b7280">INDUSTRIAL</text>
-                        </g>
-
-                        {/* Entrance Label */}
-                        <text x="400" y="575" textAnchor="middle" fontFamily="sans-serif" fontSize="14" fill="#374151" fontWeight="bold">ENTRANCE</text>
 
                         {/* Dynamic Path Line */}
                         <path
-                            d={`M ${USER_POS.x} ${USER_POS.y} Q 400 300 ${targetPos.x} ${targetPos.y}`}
+                            d={`M ${USER_POS.x} ${USER_POS.y} Q 450 400 ${targetPos.x} ${targetPos.y}`}
                             fill="none"
-                            stroke="#2563eb"
+                            stroke="#06b6d4"
                             strokeWidth="4"
                             strokeDasharray="10 6"
                             className="animate-[dash_1s_linear_infinite]"
+                            opacity="0.8"
                         />
 
                         {/* Start Point (You) */}
-                        <circle cx={USER_POS.x} cy={USER_POS.y} r="10" fill="#2563eb" />
-                        <text x={USER_POS.x} y={USER_POS.y + 4} textAnchor="middle" fontFamily="sans-serif" fontSize="8" fill="white" fontWeight="bold">YOU</text>
+                        <circle cx={USER_POS.x} cy={USER_POS.y} r="10" fill="#22c55e" />
+                        <text x={USER_POS.x} y={USER_POS.y + 4} textAnchor="middle" fontFamily="Inter, system-ui, sans-serif" fontSize="8" fill="white" fontWeight="bold">YOU</text>
 
                         {/* End Point (Target) */}
-                        <circle cx={targetPos.x} cy={targetPos.y} r="18" fill="#ef4444" opacity="0.3" className="animate-ping" />
-                        <circle cx={targetPos.x} cy={targetPos.y} r="12" fill="#ef4444" />
-                        <text x={targetPos.x} y={targetPos.y + 4} textAnchor="middle" fontFamily="sans-serif" fontSize="9" fill="white" fontWeight="bold">{targetStall?.charAt(0)}</text>
+                        <circle cx={targetPos.x} cy={targetPos.y} r="18" fill="#06b6d4" opacity="0.3" className="animate-ping" />
+                        <circle cx={targetPos.x} cy={targetPos.y} r="12" fill="#06b6d4" />
+                        <text x={targetPos.x} y={targetPos.y + 4} textAnchor="middle" fontFamily="Inter, system-ui, sans-serif" fontSize="10" fill="white" fontWeight="bold">{targetStall?.charAt(0) || '★'}</text>
 
                     </svg>
                 </div>
-
             </div>
         </div>
     );

@@ -72,7 +72,7 @@ export const SettingsModal = ({
                             <Mic size={16} />
                             <span className="font-medium uppercase tracking-wider text-xs">Speech Input Language</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-3 gap-3">
                             <button
                                 onClick={() => setLocalLanguage('en-IN')}
                                 className={`px-4 py-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2
@@ -92,6 +92,16 @@ export const SettingsModal = ({
                             >
                                 🇮🇳 हिंदी
                                 {localLanguage === 'hi-IN' && <Check size={16} />}
+                            </button>
+                            <button
+                                onClick={() => setLocalLanguage('hi-Hinglish')}
+                                className={`px-4 py-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2
+                                    ${localLanguage === 'hi-Hinglish'
+                                        ? 'bg-cyan-500/20 text-cyan-400 border-2 border-cyan-500/50 shadow-lg shadow-cyan-500/10'
+                                        : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-white'}`}
+                            >
+                                🗣️ Hinglish
+                                {localLanguage === 'hi-Hinglish' && <Check size={16} />}
                             </button>
                         </div>
                     </div>
