@@ -9,7 +9,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
  * NOTE: No client-side VAD — both backends use server-side VAD.
  *       Mic audio is streamed continuously via AudioWorkletNode.
  */
-export const useWSVoice = () => {
+export const useWSVoice = ({ onShowMap } = {}) => {
   // Connection & Active States
   const [isConnected, setIsConnected] = useState(false);
   const [isVoiceModeActive, setIsVoiceModeActive] = useState(false);
@@ -41,7 +41,7 @@ export const useWSVoice = () => {
   const initAudio = useCallback(() => {
     if (!audioContextRef.current) {
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      const ctx = new AudioContextClass();
+      const ctx = new AudioContextClass({ latencyHint: 'interactive' });
       audioContextRef.current = ctx;
 
       const analyser = ctx.createAnalyser();
@@ -177,6 +177,11 @@ export const useWSVoice = () => {
             }
             break;
 
+          case 'show_map':
+            console.log('[WS] Map trigger received:', msg.stallId);
+            if (onShowMap) onShowMap(msg.stallId);
+            break;
+
           case 'error':
             console.error("[WS] Server Error:", msg.message);
             break;
@@ -207,13 +212,7 @@ export const useWSVoice = () => {
     await audioCtx.audioWorklet.addModule('/pcm-processor.js');
     const source = audioCtx.createMediaStreamSource(stream);
 
-    // VAD Configuration: Stop sending chunks if volume stays below threshold
-    // Using a simple RMS (Root Mean Square) calculation
-    const silenceThreshold = 0.01; // Adjust this based on mic sensitivity
-    let silenceChunkCount = 0;
-    const maxSilenceChunks = 20; // ~1.2 seconds of silence before cutting stream (adjusted for smaller buffer)
-
-    // Use AudioWorkletNode for continuous PCM capture
+    // Use AudioWorkletNode for continuous PCM capture (server-side VAD handles silence detection)
     const workletNode = new AudioWorkletNode(audioCtx, 'pcm-processor');
     workletNode.port.onmessage = (e) => {
       if (!isVoiceModeActiveRef.current) return;
@@ -221,27 +220,7 @@ export const useWSVoice = () => {
 
       const float32 = e.data;
 
-      // 1. Calculate Volume (RMS)
-      let sumSquares = 0.0;
-      for (let i = 0; i < float32.length; i++) {
-        sumSquares += float32[i] * float32[i];
-      }
-      const rms = Math.sqrt(sumSquares / float32.length);
-
-      // 2. VAD Logic
-      if (rms < silenceThreshold) {
-        silenceChunkCount++;
-      } else {
-        silenceChunkCount = 0; // Reset on sound
-      }
-
-      // 3. Skip sending if we've been silent for too long
-      // (Keeps sending a few silent chunks to ensure trailing audio isn't cut)
-      if (silenceChunkCount > maxSilenceChunks) {
-        return; // Skip WebSocket send to save bandwidth/latency
-      }
-
-      // 4. Convert to PCM16 Base64
+      // Convert to PCM16 Base64
       const int16 = new Int16Array(float32.length);
       for (let i = 0; i < float32.length; i++) {
         int16[i] = Math.max(-1, Math.min(1, float32[i])) * 0x7FFF;
@@ -303,7 +282,7 @@ export const useWSVoice = () => {
 
         ws.send(JSON.stringify({
           type: 'start_gemini_live',
-          language: language.startsWith('hi') ? 'hi' : 'en',
+          language: language,
           userMetadata: safeMetadata
         }));
         // Start continuous mic streaming

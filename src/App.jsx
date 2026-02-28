@@ -17,12 +17,6 @@ import { ChatSidebar } from './components/ui/ChatSidebar';
 import { useWSVoice } from './hooks/useWSVoice';
 import { useMicAnalyser } from './hooks/useMicAnalyser';
 
-const SUGGESTIONS = [
-  "What is the Kalinganagar project?",
-  "Tell me about sustainability.",
-  "Latest CSR initiatives?",
-  "Steel manufacturing process"
-];
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -64,10 +58,20 @@ function AppLayout() {
     stopSpeaking,
     analyser,
     warmup
-  } = useWSVoice();
+  } = useWSVoice({
+    onShowMap: (stallId) => { setMapTarget(stallId); setShowMap(true); },
+  });
 
 
-  const [language, setLanguage] = useState('hi-IN');
+  const [language, setLanguage] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('techex_user'))?.language || 'hi-IN'; } catch { return 'hi-IN'; }
+  });
+
+  const mapLanguage = (lang) => {
+    if (lang === 'hi-Hinglish') return 'hinglish';
+    if (lang?.startsWith('hi')) return 'hi';
+    return 'en';
+  };
 
   // Microphone Analyser for Visualizer
   const micAnalyser = useMicAnalyser(isListening);
@@ -111,7 +115,7 @@ function AppLayout() {
   useEffect(() => {
     if (isChatFocused && isVoiceModeActive) {
       console.log("[App] Chat focused, auto-disconnecting voice...");
-      const lang = language?.startsWith('hi') ? 'hi' : 'en';
+      const lang = mapLanguage(language);
       toggleGeminiLiveMode(lang, user);
     }
   }, [isChatFocused, isVoiceModeActive, toggleGeminiLiveMode, language, user]);
@@ -121,7 +125,7 @@ function AppLayout() {
     if (user && !loading && !localStorage.getItem('techex_greeted')) {
       console.log("[App] New user detected, auto-activating voice mode...");
       localStorage.setItem('techex_greeted', 'true');
-      const lang = language?.startsWith('hi') ? 'hi' : 'en';
+      const lang = mapLanguage(language);
       // Slight delay to ensure UI is ready
       setTimeout(() => {
         toggleGeminiLiveMode(lang, user);
@@ -137,7 +141,7 @@ function AppLayout() {
 
     console.log(`[App] Orb Clicked. Toggle Gemini Live Mode:`, !isVoiceModeActive);
     warmup();
-    const lang = language?.startsWith('hi') ? 'hi' : 'en';
+    const lang = mapLanguage(language);
     toggleGeminiLiveMode(lang, activeUser);
   };
 
@@ -153,7 +157,7 @@ function AppLayout() {
     setLoading(true);
 
     try {
-      const chatLanguage = language?.startsWith('hi') ? 'hi' : 'en';
+      const chatLanguage = mapLanguage(language);
       // Pass user metadata for personalization
       sendChat(text, null, messages, chatLanguage, {
         userName: user?.name,
@@ -226,8 +230,6 @@ function AppLayout() {
         onStop={handleStop}
         isSpeaking={isSpeaking}
         loading={loading}
-        quickReplies={messages.length === 0 ? SUGGESTIONS : []}
-        onQuickReply={handleSend}
         onToggleFocus={() => setIsChatFocused(!isChatFocused)}
         isFocused={isChatFocused}
         isListening={isListening && !isVoiceModeActive}
