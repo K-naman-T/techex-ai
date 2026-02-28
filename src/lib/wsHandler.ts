@@ -140,7 +140,7 @@ Stick to the language specified above unless the user explicitly asks you to swi
 
   const model = "gemini-2.5-flash-native-audio-preview-12-2025"; // Flagship Live API model as requested
   const liveConfig = {
-    responseModalities: [Modality.AUDIO, Modality.TEXT],
+    responseModalities: [Modality.AUDIO],
     systemInstruction: systemInstruction,
     speechConfig: {
       voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } },
@@ -148,7 +148,7 @@ Stick to the language specified above unless the user explicitly asks you to swi
     realtimeInputConfig: {
       automaticActivityDetection: {
         startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
-        endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
+        endOfSpeechSensitivity: "END_SENSITIVITY_HIGH",
       },
       activityHandling: "START_OF_ACTIVITY_INTERRUPTS",
       turnCoverage: "TURN_INCLUDES_ALL_INPUT",
@@ -175,7 +175,7 @@ Stick to the language specified above unless the user explicitly asks you to swi
           ws.send(JSON.stringify({ type: "gemini_live_ready" }));
         },
         onmessage: (message: any) => {
-          // console.log("[RAW]", JSON.stringify(message).substring(0, 150)); // Debug log disabled
+          // console.log("[RAW]", JSON.stringify(message).substring(0, 300)); // Debug log disabled
 
           if (message.setupComplete) {
             console.log("[Gemini Live] Setup complete, session ID:", message.setupComplete?.sessionId || "N/A");
