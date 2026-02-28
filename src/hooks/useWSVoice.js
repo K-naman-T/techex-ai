@@ -155,6 +155,10 @@ export const useWSVoice = ({ onShowMap } = {}) => {
           case 'chat_complete':
             break;
           case 'audio_out':
+            console.log("[CLIENT] Received audio_out, data length:", msg.data?.length);
+            // AI is speaking → user is no longer "listening"
+            setIsListening(false);
+            handleIncomingRawPCM(msg.data, 24000);
             // AI is speaking → user is no longer "listening"
             setIsListening(false);
             handleIncomingRawPCM(msg.data, 24000);
