@@ -17,17 +17,10 @@ export const AppHeader = ({
             <div className="pointer-events-auto flex flex-col gap-2">
                 <div className="flex items-center gap-3">
                     <img
-                        src="/assets/techex26-logo.png"
+                        src="/techex26-logo.png"
                         alt="TechEx 2026 Logo"
                         className="h-16 w-auto object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
                     />
-                </div>
-                <div className="flex items-center gap-2 ml-1">
-                    <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                    <span className="text-[10px] text-gray-500 font-mono tracking-widest uppercase">SYS ONLINE</span>
                 </div>
             </div>
 

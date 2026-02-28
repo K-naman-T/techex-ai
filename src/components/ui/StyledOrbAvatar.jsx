@@ -84,7 +84,7 @@ const StyledWrapper = styled.div`
     
     /* Active vs Inactive Colors */
     background: ${props => {
-    if (!props.$isActive) return '#333333'; // Inactive Gray
+    if (!props.$isActive) return 'radial-gradient(ellipse at 30% 40%, rgba(245,245,245,0.6), rgba(200,200,210,0.3) 50%, rgba(100,100,120,0.15) 100%)'; // White smoke dormant
     return props.$isListening ? '#06b6d4' : '#ff3e1c';
   }};
     transition: background 1.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -103,7 +103,7 @@ const StyledWrapper = styled.div`
     return '30s';
   }};
     
-    opacity: ${props => props.$isActive ? '0.8' : '0.4'};
+    opacity: ${props => props.$isActive ? '0.8' : '0.55'};
     will-change: transform;
     --audio-scale: 1;
   }
@@ -189,7 +189,7 @@ export const StyledOrbAvatar = ({ isSpeaking, isListening, isLoading, isActive, 
 
         {/* Engagement prompt when idle */}
         {!isActive && (
-          <div className="absolute bottom-0 text-white/40 font-mono tracking-widest text-[10px] uppercase animate-pulse">
+          <div className="absolute -bottom-6 text-white/40 font-mono tracking-widest text-[10px] uppercase animate-pulse">
             Click to engage voice mode
           </div>
         )}

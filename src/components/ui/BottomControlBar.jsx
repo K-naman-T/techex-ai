@@ -9,8 +9,6 @@ export const BottomControlBar = ({
   onStop,
   isSpeaking,
   loading,
-  quickReplies = [],
-  onQuickReply,
   onToggleFocus,
   isFocused,
   // STT Props
@@ -30,22 +28,6 @@ export const BottomControlBar = ({
   return (
     <div className="absolute bottom-10 sm:bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-2 sm:px-4 flex flex-col gap-2 sm:gap-4 pointer-events-auto z-[60] border border-red-500/0">
 
-      {/* Quick Replies */}
-      {!isSpeaking && !loading && quickReplies.length > 0 && !isFocused && (
-        <div className="flex w-full items-center justify-start gap-3 overflow-x-auto pb-3 custom-scrollbar snap-x no-scrollbar">
-          <div className="flex gap-2 mx-auto px-4">
-            {quickReplies.map((text, idx) => (
-              <button
-                key={idx}
-                onClick={() => onQuickReply(text)}
-                className="flex-shrink-0 px-5 py-2.5 bg-[#0a0a0a]/60 backdrop-blur-xl border border-white/10 rounded-full text-sm font-medium text-cyan-100/90 hover:bg-cyan-500/20 hover:border-cyan-500/50 hover:text-white transition-all shadow-xl whitespace-nowrap snap-center active:scale-95"
-              >
-                {text}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Main Control Capsule */}
       <div className="relative group">
