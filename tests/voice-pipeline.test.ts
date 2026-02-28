@@ -318,6 +318,60 @@ describe("Voice Pipeline E2E", () => {
   );
 
   // --------------------------------------------------------------------------
+  // Test 6: Config validation — Gemini accepts optimized liveConfig
+  // Validates that thinkingConfig, realtimeInputConfig, and generationConfig
+  // are accepted by the Gemini Live API without connection errors.
+  // --------------------------------------------------------------------------
+  test(
+    "Gemini accepts optimized liveConfig (thinkingConfig, realtimeInputConfig, generationConfig)",
+    async () => {
+      if (!HAS_API_KEY) return;
+
+      const ws = new WebSocket(WS_URL);
+
+      // Wait for open
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("WS open timed out")), 5_000);
+        ws.addEventListener("open", () => {
+          clearTimeout(timer);
+          resolve();
+        });
+        ws.addEventListener("error", (e) => {
+          clearTimeout(timer);
+          reject(new Error(`WS error on open: ${e}`));
+        });
+      });
+
+      // Set up waiter BEFORE sending start
+      const readyPromise = waitForMessage(ws, "gemini_live_ready", 15_000);
+
+      // Send start_gemini_live — server will use the new optimized liveConfig
+      // (thinkingConfig: { thinkingBudget: 0 }, realtimeInputConfig with VAD settings,
+      //  generationConfig: { maxOutputTokens: 256 })
+      ws.send(
+        JSON.stringify({
+          type: "start_gemini_live",
+          language: "en",
+          userMetadata: { name: "ConfigTest", interests: ["Testing"] },
+        })
+      );
+
+      // If the config has invalid fields, Gemini will reject the connection
+      // and gemini_live_ready will never arrive (timeout = failure)
+      const readyMsg = await readyPromise;
+      expect(readyMsg.type).toBe("gemini_live_ready");
+
+      // Clean up: stop session and close
+      const stoppedPromise = waitForMessage(ws, "gemini_live_stopped", 5_000);
+      ws.send(JSON.stringify({ type: "stop_gemini_live" }));
+      const stoppedMsg = await stoppedPromise;
+      expect(stoppedMsg.type).toBe("gemini_live_stopped");
+
+      ws.close();
+    },
+    30_000 // 30s timeout — config validation should be fast
+  );
+  // --------------------------------------------------------------------------
   // Test 5: Graceful behavior when API key requirement is met
   // --------------------------------------------------------------------------
   test("skip guard works when API key is absent", () => {
