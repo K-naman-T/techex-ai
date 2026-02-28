@@ -52,10 +52,11 @@ export const handleWSMessage = async (
       case "gemini_audio_in":
         if (ctx.geminiLiveSession) {
           try {
+            console.log("[SERVER] Forwarding audio to Gemini, data length:", msg.data?.length);
             ctx.geminiLiveSession.sendRealtimeInput({
               media: {
                 data: msg.data, // already base64
-                mimeType: "audio/pcm;rate=16000",
+                mimeType: "audio/pcm",
               },
             });
           } catch (e: any) {
@@ -175,6 +176,7 @@ Stick to the language specified above unless the user explicitly asks you to swi
           ws.send(JSON.stringify({ type: "gemini_live_ready" }));
         },
         onmessage: (message: any) => {
+          console.log("[GEMINI] Received:", JSON.stringify(message).substring(0, 200));
           // console.log("[RAW]", JSON.stringify(message).substring(0, 300)); // Debug log disabled
 
           if (message.setupComplete) {
@@ -307,7 +309,7 @@ ${languageInstruction}
 `;
 
   const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash", // Use stable model for text chat
+    model: "gemini-2.5-flash", // Use current stable model
     systemInstruction: systemInstruction,
   });
 
