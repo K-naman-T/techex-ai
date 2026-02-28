@@ -1,6 +1,5 @@
 import React from 'react';
-import { Send, Mic, MicOff, Square, Sparkles, Maximize2, Minimize2 } from 'lucide-react';
-import { AudioVisualizer } from './AudioVisualizer';
+import { Send, Square, Sparkles, Maximize2, Minimize2 } from 'lucide-react';
 
 export const BottomControlBar = ({
   input,
@@ -10,12 +9,7 @@ export const BottomControlBar = ({
   isSpeaking,
   loading,
   onToggleFocus,
-  isFocused,
-  // STT Props
-  isListening,
-  onMicClick,
-  interimTranscript,
-  isSTTSupported
+  isFocused
 }) => {
 
   const handleKeyDown = (e) => {
@@ -27,8 +21,6 @@ export const BottomControlBar = ({
 
   return (
     <div className="absolute bottom-10 sm:bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-2 sm:px-4 flex flex-col gap-2 sm:gap-4 pointer-events-auto z-[60] border border-red-500/0">
-
-
       {/* Main Control Capsule */}
       <div className="relative group">
         <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 rounded-full opacity-30 group-hover:opacity-60 blur transition duration-500"></div>
@@ -45,35 +37,15 @@ export const BottomControlBar = ({
             </button>
           </div>
 
-          {/* Mic */}
-          <div className="flex items-center">
-            {!isSTTSupported ? (
-              <button disabled className="p-2 sm:p-3 text-gray-600 cursor-not-allowed rounded-full" title="Speech not supported">
-                <MicOff size={20} className="sm:w-5 sm:h-5" />
-              </button>
-            ) : isListening ? (
-              <button onClick={onMicClick} className="p-2 sm:p-3 bg-red-500/20 text-red-400 rounded-full hover:bg-red-500/30 transition-colors animate-pulse">
-                <AudioVisualizer isActive={true} />
-              </button>
-            ) : (
-              <button
-                onClick={onMicClick}
-                className="p-2 sm:p-3 text-gray-400 hover:text-cyan-400 hover:bg-white/5 rounded-full transition-all"
-              >
-                <Mic size={20} className="sm:w-6 sm:h-6" />
-              </button>
-            )}
-          </div>
-
           {/* Input */}
           <input
             type="text"
-            value={isListening && interimTranscript ? interimTranscript : input}
+            value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={loading || isSpeaking || isListening}
-            placeholder={isListening ? "Listening..." : "Ask me anything..."}
-            className={`flex-1 bg-transparent border-none outline-none placeholder-gray-500 px-2 sm:px-4 font-sans text-base sm:text-lg h-10 sm:h-12 min-w-0 ${isListening ? 'text-cyan-400 italic' : 'text-white'}`}
+            disabled={loading || isSpeaking}
+            placeholder="Ask me anything..."
+            className="flex-1 bg-transparent border-none outline-none placeholder-gray-500 px-2 sm:px-4 font-sans text-base sm:text-lg h-10 sm:h-12 min-w-0 text-white"
           />
 
           {/* Send / Stop */}
@@ -88,10 +60,10 @@ export const BottomControlBar = ({
             ) : (
               <button
                 onClick={onSend}
-                disabled={loading || (!input.trim() && !isListening)}
+                disabled={loading || !input.trim()}
                 className={`
                         p-2 sm:p-3 rounded-full flex items-center justify-center transition-all duration-300
-                        ${loading || (!input.trim() && !isListening)
+                        ${loading || !input.trim()
                     ? 'bg-white/10 text-gray-500 cursor-not-allowed'
                     : 'bg-gradient-to-tr from-cyan-500 to-blue-600 text-white shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:scale-105 active:scale-95'
                   }

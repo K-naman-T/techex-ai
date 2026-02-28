@@ -232,6 +232,16 @@ function AppLayout() {
         loading={loading}
         onToggleFocus={() => setIsChatFocused(!isChatFocused)}
         isFocused={isChatFocused}
+      />
+      <BottomControlBar
+        input={input}
+        setInput={setInput}
+        onSend={() => handleSend(input)}
+        onStop={handleStop}
+        isSpeaking={isSpeaking}
+        loading={loading}
+        onToggleFocus={() => setIsChatFocused(!isChatFocused)}
+        isFocused={isChatFocused}
         isListening={isListening && !isVoiceModeActive}
         onMicClick={handleMicClick}
         interimTranscript={interimTranscript}
