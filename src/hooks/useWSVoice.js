@@ -26,6 +26,8 @@ export const useWSVoice = ({ onShowMap } = {}) => {
   const audioContextRef = useRef(null);
   const wsRef = useRef(null);
   const isVoiceModeActiveRef = useRef(false);
+  const isSpeakingRef = useRef(false);
+  const isHoldingRef = useRef(false);
 
   const nextStartTimeRef = useRef(0);
   const analyserRef = useRef(null);
@@ -65,6 +67,30 @@ export const useWSVoice = ({ onShowMap } = {}) => {
       activeSourceRef.current = null;
     }
     setIsSpeaking(false);
+    isSpeakingRef.current = false;
+  }, []);
+
+  const startInterrupt = useCallback(() => {
+    console.log("[Mic] Push-to-talk: START");
+    isHoldingRef.current = true;
+    stopSpeaking(); // Immediately cut off AI audio playback locally
+    setIsListening(true);
+
+    // Signal Gemini that user is speaking (manual VAD)
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "activity_start" }));
+    }
+  }, [stopSpeaking]);
+
+  const stopInterrupt = useCallback(() => {
+    console.log("[Mic] Push-to-talk: END");
+    isHoldingRef.current = false;
+    setIsListening(false);
+
+    // Signal Gemini that user stopped speaking (manual VAD)
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "activity_end" }));
+    }
   }, []);
 
 
@@ -110,9 +136,11 @@ export const useWSVoice = ({ onShowMap } = {}) => {
     nextStartTimeRef.current = startTime + audioBuffer.duration;
 
     setIsSpeaking(true);
+    isSpeakingRef.current = true;
     source.onended = () => {
       if (ctx.currentTime >= nextStartTimeRef.current - 0.05) {
         setIsSpeaking(false);
+        isSpeakingRef.current = false;
       }
     };
   }, [initAudio]);
@@ -155,17 +183,14 @@ export const useWSVoice = ({ onShowMap } = {}) => {
           case 'chat_complete':
             break;
           case 'audio_out':
-            // AI is speaking → user is no longer "listening"
-            setIsListening(false);
-            handleIncomingRawPCM(msg.data, 24000);
-            break;
             console.log("[CLIENT] Received audio_out, data length:", msg.data?.length);
             // AI is speaking → user is no longer "listening"
             setIsListening(false);
-            handleIncomingRawPCM(msg.data, 24000);
-            // AI is speaking → user is no longer "listening"
-            setIsListening(false);
-            handleIncomingRawPCM(msg.data, 24000);
+            try {
+              handleIncomingRawPCM(msg.data, 24000);
+            } catch (e) {
+              console.error("[CLIENT] Error playing audio:", e);
+            }
             break;
 
           // === Gemini Live messages ===
@@ -229,6 +254,8 @@ export const useWSVoice = ({ onShowMap } = {}) => {
     workletNode.port.onmessage = (e) => {
       if (!isVoiceModeActiveRef.current) return;
       if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+      // Push-to-talk: only send audio while user is holding the orb
+      if (!isHoldingRef.current) return;
 
       const float32 = e.data;
 
@@ -239,9 +266,14 @@ export const useWSVoice = ({ onShowMap } = {}) => {
       }
 
       const uint8 = new Uint8Array(int16.buffer);
-      let binary = '';
-      for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
-      const base64 = btoa(binary);
+      // Fast & safe base64 encoding for raw binary data
+      let base64 = '';
+      const chunkSize = 0x8000; // 32KB max per apply call to avoid call stack overflow
+      for (let i = 0; i < uint8.length; i += chunkSize) {
+        const chunk = uint8.subarray(i, i + chunkSize);
+        base64 += String.fromCharCode.apply(null, chunk);
+      }
+      base64 = btoa(base64);
 
       wsRef.current.send(JSON.stringify({ type: messageType, data: base64 }));
     };
@@ -268,7 +300,7 @@ export const useWSVoice = ({ onShowMap } = {}) => {
 
   // ============= GEMINI LIVE MODE =============
 
-  const toggleGeminiLiveMode = useCallback(async (language = 'hi', userMetadata = null) => {
+  const toggleGeminiLiveMode = useCallback(async (language = 'hi', userMetadata = null, isFirstTime = false) => {
     const newState = !isVoiceModeActive;
     setIsVoiceModeActive(newState);
     isVoiceModeActiveRef.current = newState;
@@ -295,7 +327,8 @@ export const useWSVoice = ({ onShowMap } = {}) => {
         ws.send(JSON.stringify({
           type: 'start_gemini_live',
           language: language,
-          userMetadata: safeMetadata
+          userMetadata: safeMetadata,
+          isFirstTime: isFirstTime
         }));
         // Start continuous mic streaming
         await startMicStream('gemini_audio_in');
@@ -320,37 +353,62 @@ export const useWSVoice = ({ onShowMap } = {}) => {
   // ============= CHAT (Text) =============
 
   const sendChat = useCallback(async (text, conversation_id, history = [], language = 'en', userMetadata = {}) => {
-    const ws = await connect();
     setChatResponse('');
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
-        type: 'chat',
-        message: text,
-        conversation_id,
-        history,
-        language,
-        userMetadata
-      }));
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, history, language, userMetadata })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.replace('data: ', '');
+            try {
+              const msg = JSON.parse(dataStr);
+              if (msg.type === 'chat_delta') {
+                setChatResponse(prev => prev + msg.text);
+              } else if (msg.type === 'show_map' && onShowMap) {
+                onShowMap(msg.stallId);
+              } else if (msg.type === 'error') {
+                console.error("[HTTP Chat] Server error:", msg.message);
+              }
+            } catch (e) {
+              console.warn("Failed to parse SSE JSON:", e, dataStr);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("[HTTP Chat] Error:", error);
     }
-  }, [connect]);
+  }, [onShowMap]);
 
   // ============= CLEANUP =============
 
   useEffect(() => {
-    let isMounted = true;
-    let localSocket = null;
-
-    connect().then(socket => {
-      if (!isMounted && socket.readyState === WebSocket.OPEN) socket.close();
-      else localSocket = socket;
-    });
-
     return () => {
-      isMounted = false;
-      if (localSocket?.readyState === WebSocket.OPEN) localSocket.close();
       stopMicStream();
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.close();
+      }
     };
-  }, [connect, stopMicStream]);
+  }, [stopMicStream]);
 
   return {
     isConnected,
@@ -361,6 +419,8 @@ export const useWSVoice = ({ onShowMap } = {}) => {
     transcript,
     interimTranscript,
     chatResponse,
+    startInterrupt,
+    stopInterrupt,
     toggleGeminiLiveMode,   // Gemini Live (unified audio-in/out)
     sendChat,
     stopSpeaking,

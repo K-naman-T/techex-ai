@@ -56,6 +56,8 @@ function AppLayout() {
     toggleGeminiLiveMode,
     sendChat,
     stopSpeaking,
+    startInterrupt,
+    stopInterrupt,
     analyser,
     warmup
   } = useWSVoice({
@@ -116,7 +118,7 @@ function AppLayout() {
     if (isChatFocused && isVoiceModeActive) {
       console.log("[App] Chat focused, auto-disconnecting voice...");
       const lang = mapLanguage(language);
-      toggleGeminiLiveMode(lang, user);
+      toggleGeminiLiveMode(lang, user, false);
     }
   }, [isChatFocused, isVoiceModeActive, toggleGeminiLiveMode, language, user]);
 
@@ -128,7 +130,7 @@ function AppLayout() {
       const lang = mapLanguage(language);
       // Slight delay to ensure UI is ready
       setTimeout(() => {
-        toggleGeminiLiveMode(lang, user);
+        toggleGeminiLiveMode(lang, user, true); // First time onboarding greets the user
       }, 500);
     }
   }, [user, loading, toggleGeminiLiveMode, language]);
@@ -142,7 +144,8 @@ function AppLayout() {
     console.log(`[App] Orb Clicked. Toggle Gemini Live Mode:`, !isVoiceModeActive);
     warmup();
     const lang = mapLanguage(language);
-    toggleGeminiLiveMode(lang, activeUser);
+    // Explicit click is NOT a first-time greeting auto-prompt
+    toggleGeminiLiveMode(lang, activeUser, false);
   };
 
   const handleStop = () => stopSpeaking();
@@ -194,6 +197,8 @@ function AppLayout() {
         analyser={analyser}
         micAnalyser={micAnalyser}
         onClick={handleMicClick}
+        onInterruptStart={startInterrupt}
+        onInterruptStop={stopInterrupt}
       />
 
 

@@ -1,16 +1,15 @@
 import { serve } from "bun";
 import fs from "node:fs";
 import path from "node:path";
-import { handleWSMessage } from "./src/lib/wsHandler";
+import { TextChatService } from "./src/services/TextChatService";
+import { VoiceChatService } from "./src/services/VoiceChatService";
 
 const DB_PATH = path.join(process.cwd(), "data", "db.json");
 
-// --- SECURITY: Backend-only secrets ---
-const API_KEY = process.env.GEMINI_API_KEY;
-if (!API_KEY) {
-  console.error("Error: GEMINI_API_KEY is missing in environment");
-  process.exit(1);
-}
+import { ApiKeyManager } from "./src/lib/apiKeyManager";
+
+// --- SECURITY: API Key Rotation ---
+const apiKeyManager = new ApiKeyManager();
 
 // --- Knowledge Base ---
 let eventInfo: any = {};
@@ -38,8 +37,22 @@ const initKnowledgeBase = async () => {
   }
 };
 
+export type WSContext = {
+  userId: string;
+  geminiLiveSession?: any;
+};
+
+// --- Service Initialization ---
+// Both services manage API key state intrinsically to support round-robin
+const textChatService = new TextChatService(apiKeyManager, {
+  getProjectsContext: () => projectsContext,
+  getEventInfo: () => eventInfo,
+});
+
+const voiceChatService = new VoiceChatService(apiKeyManager);
+
 // Start server
-const server = serve({
+const server = serve<WSContext>({
   port: process.env.PORT || 3005,
   hostname: "0.0.0.0",
   async fetch(req) {
@@ -61,6 +74,16 @@ const server = serve({
     if (url.pathname === "/api/ws") {
       if (server.upgrade(req, { data: { userId: "guest" } })) return;
       return new Response("Upgrade failed", { status: 400 });
+    }
+
+    // HTTP Chat Endpoint (SSE)
+    if (url.pathname === "/api/chat" && req.method === "POST") {
+      try {
+        return await textChatService.handleStream(req);
+      } catch (err) {
+        console.error("Error handling chat stream:", err);
+        return new Response("Error processing chat", { status: 500 });
+      }
     }
 
     // CORS preflight
@@ -85,14 +108,81 @@ const server = serve({
     return new Response("Not Found", { status: 404 });
   },
   websocket: {
+    maxPayloadLength: 16 * 1024 * 1024, // 16 MB max incoming message
+    backpressureLimit: 64 * 1024 * 1024, // 64 MB queued before dropping (audio chunks pile up)
     async message(ws, message) {
-      await handleWSMessage(ws as any, message, {
-        geminiKey: API_KEY || "",
-        projectsContext,
-        eventInfo,
-      });
+      try {
+        const msg = JSON.parse(message.toString());
+        const ctx = ws.data;
+
+        switch (msg.type) {
+          case "start_gemini_live":
+            await voiceChatService.initSession(
+              ws,
+              {
+                getProjectsContext: () => projectsContext,
+                getEventInfo: () => eventInfo,
+              },
+              msg.language,
+              msg.userMetadata,
+              msg.isFirstTime
+            );
+            break;
+
+          case "gemini_audio_in":
+            if (ctx.geminiLiveSession) {
+              try {
+                // Use `audio` property per LiveSendRealtimeInputParameters type
+                ctx.geminiLiveSession.sendRealtimeInput({
+                  audio: {
+                    mimeType: "audio/pcm;rate=16000",
+                    data: msg.data, // base64
+                  }
+                });
+              } catch (e: any) {
+                console.error("[Voice API] sendRealtimeInput error:", e.message || e);
+              }
+            }
+            break;
+
+          case "activity_start":
+            if (ctx.geminiLiveSession) {
+              try {
+                ctx.geminiLiveSession.sendRealtimeInput({ activityStart: {} });
+              } catch (e: any) {
+                console.error("[Voice API] activityStart error:", e.message || e);
+              }
+            }
+            break;
+
+          case "activity_end":
+            if (ctx.geminiLiveSession) {
+              try {
+                ctx.geminiLiveSession.sendRealtimeInput({ activityEnd: {} });
+              } catch (e: any) {
+                console.error("[Voice API] activityEnd error:", e.message || e);
+              }
+            }
+            break;
+
+          case "stop_gemini_live":
+            if (ctx.geminiLiveSession) {
+              try { ctx.geminiLiveSession.close(); } catch (e) { }
+              ctx.geminiLiveSession = undefined;
+            }
+            ws.send(JSON.stringify({ type: "gemini_live_stopped" }));
+            break;
+
+          default:
+            console.warn(`[WS] Unknown message type: ${msg.type}`);
+        }
+      } catch (e) {
+        console.error("[WS] Error handling message:", e);
+        ws.send(JSON.stringify({ type: "error", message: "Internal server error" }));
+      }
     },
     open(ws) { console.log(`[WS] Open`); },
+    drain(ws) { console.log(`[WS] Backpressure drained, ready to send again`); },
     close(ws) {
       const ctx = ws.data as any;
       if (ctx.geminiLiveSession) {

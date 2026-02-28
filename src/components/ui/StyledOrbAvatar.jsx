@@ -136,7 +136,7 @@ const StyledWrapper = styled.div`
   }
 `;
 
-export const StyledOrbAvatar = ({ isSpeaking, isListening, isLoading, isActive, analyser, micAnalyser, onClick }) => {
+export const StyledOrbAvatar = ({ isSpeaking, isListening, isLoading, isActive, analyser, micAnalyser, onClick, onInterruptStart, onInterruptStop }) => {
   const requestRef = useRef();
   const lastScale = useRef(1);
   const innerRef1 = useRef(null);
@@ -179,7 +179,25 @@ export const StyledOrbAvatar = ({ isSpeaking, isListening, isLoading, isActive, 
 
   return (
     <StyledWrapper $isListening={isListening} $isSpeaking={isSpeaking} $isLoading={isLoading} $isActive={isActive}>
-      <div className="orb-clickable-area" onClick={onClick}>
+      <div
+        className="orb-clickable-area"
+        onClick={onClick}
+        onPointerDown={(e) => {
+          if (isActive) {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            onInterruptStart?.();
+          }
+        }}
+        onPointerUp={(e) => {
+          if (isActive) {
+            try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { }
+            onInterruptStop?.();
+          }
+        }}
+        onPointerLeave={(e) => {
+          if (isActive) onInterruptStop?.();
+        }}
+      >
         <div className="orb-container">
           <div className="orb">
             <div ref={innerRef1} className="orb-inner" />
