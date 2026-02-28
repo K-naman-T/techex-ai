@@ -220,6 +220,13 @@ function AppLayout() {
         loading={loading}
         isFocused={isChatFocused}
         onMapClick={(stall) => { setMapTarget(stall); setShowMap(true); }}
+        onClose={() => setIsChatFocused(false)}
+      />
+      <ChatLayer
+        messages={messages}
+        loading={loading}
+        isFocused={isChatFocused}
+        onMapClick={(stall) => { setMapTarget(stall); setShowMap(true); }}
       />
 
       {/* Bottom Control Bar */}

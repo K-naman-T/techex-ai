@@ -4,7 +4,8 @@ export const ChatLayer = ({
     messages,
     loading,
     isFocused,
-    onMapClick
+    onMapClick,
+    onClose
 }) => {
     return (
         <div
@@ -16,6 +17,7 @@ export const ChatLayer = ({
                 loading={loading}
                 isFocused={isFocused}
                 onMapClick={onMapClick}
+                onClose={onClose}
             />
         </div>
     );
