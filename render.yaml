@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: techex-ai-2026
+    env: docker
+    plan: free
+    region: singapore # Closest to India for better latency
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VITE_GEMINI_API_KEY
+        sync: false
+      - key: VITE_SARVAM_API_KEY
+        sync: false
+      - key: VITE_ELEVENLABS_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false

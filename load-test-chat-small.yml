@@ -1,0 +1,20 @@
+# Chat test — Small run to see actual messages & replies
+config:
+  target: "ws://localhost:3005/api/ws"
+  phases:
+    - name: "5 chat users"
+      duration: 3
+      arrivalCount: 5
+  engines:
+    ws: {}
+
+scenarios:
+  - name: "3-turn Chat"
+    engine: ws
+    flow:
+      - send: '{"type": "chat", "message": "What is TechEx about?", "history": [], "language": "en", "userMetadata": {"userName": "TestUser1"}}'
+      - think: 8
+      - send: '{"type": "chat", "message": "What are the most interesting projects?", "history": [{"role": "user", "content": "What is TechEx about?"}, {"role": "model", "content": "TechEx is a technology exhibition."}], "language": "en", "userMetadata": {"userName": "TestUser1"}}'
+      - think: 8
+      - send: '{"type": "chat", "message": "Where can I find AI projects?", "history": [{"role": "user", "content": "What is TechEx about?"}, {"role": "model", "content": "TechEx is a technology exhibition."}, {"role": "user", "content": "What are the most interesting projects?"}, {"role": "model", "content": "There are several exciting projects."}], "language": "en", "userMetadata": {"userName": "TestUser1"}}'
+      - think: 8

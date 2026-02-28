@@ -1,0 +1,62 @@
+<svg width="800" height="600" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Minimalist Architectural Floor Plan -->
+  
+  <!-- Background -->
+  <rect width="800" height="600" fill="#ffffff" />
+  
+  <!-- Structure Lines -->
+  <defs>
+    <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+      <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#e5e7eb" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="800" height="600" fill="url(#grid)" />
+
+  <!-- Outer Walls -->
+  <rect x="50" y="50" width="700" height="500" rx="4" fill="none" stroke="#374151" stroke-width="4" />
+
+  <!-- Zone A (Top Left) -->
+  <g transform="translate(60, 60)">
+    <rect width="330" height="230" fill="#f3f4f6" stroke="#9ca3af" stroke-width="2" />
+    <text x="20" y="30" font-family="sans-serif" font-size="16" fill="#4b5563" font-weight="bold">ZONE A</text>
+    <text x="20" y="50" font-family="sans-serif" font-size="10" fill="#6b7280">IOT &amp; DIGITIZATION</text>
+    <!-- Stalls as simple boxes -->
+    <rect x="20" y="70" width="50" height="50" stroke="#d1d5db" fill="white" />
+    <rect x="80" y="70" width="50" height="50" stroke="#d1d5db" fill="white" />
+    <rect x="140" y="70" width="50" height="50" stroke="#d1d5db" fill="white" />
+  </g>
+
+  <!-- Zone B (Top Right) -->
+  <g transform="translate(410, 60)">
+    <rect width="330" height="230" fill="#f3f4f6" stroke="#9ca3af" stroke-width="2" />
+    <text x="20" y="30" font-family="sans-serif" font-size="16" fill="#4b5563" font-weight="bold">ZONE B</text>
+    <text x="20" y="50" font-family="sans-serif" font-size="10" fill="#6b7280">SAFETY</text>
+     <!-- Stalls -->
+     <rect x="260" y="70" width="50" height="50" stroke="#d1d5db" fill="white" />
+     <rect x="200" y="70" width="50" height="50" stroke="#d1d5db" fill="white" />
+  </g>
+
+  <!-- Zone C (Bottom Left) -->
+  <g transform="translate(60, 310)">
+    <rect width="330" height="230" fill="#f3f4f6" stroke="#9ca3af" stroke-width="2" />
+    <text x="20" y="30" font-family="sans-serif" font-size="16" fill="#4b5563" font-weight="bold">ZONE C</text>
+    <text x="20" y="50" font-family="sans-serif" font-size="10" fill="#6b7280">GREEN TECH</text>
+     <!-- Stalls -->
+     <rect x="20" y="160" width="50" height="50" stroke="#d1d5db" fill="white" />
+  </g>
+
+  <!-- Zone D (Bottom Right) -->
+  <g transform="translate(410, 310)">
+    <rect width="330" height="230" fill="#f3f4f6" stroke="#9ca3af" stroke-width="2" />
+    <text x="20" y="30" font-family="sans-serif" font-size="16" fill="#4b5563" font-weight="bold">ZONE D</text>
+    <text x="20" y="50" font-family="sans-serif" font-size="10" fill="#6b7280">INDUSTRIAL</text>
+     <!-- Stalls -->
+     <rect x="260" y="160" width="50" height="50" stroke="#d1d5db" fill="white" />
+  </g>
+
+  <!-- Entrance / Walkways -->
+  <text x="400" y="540" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#374151" font-weight="bold">ENTRANCE</text>
+  <path d="M 400 550 L 400 300" stroke="#e5e7eb" stroke-width="2" stroke-dasharray="4 4"/>
+  <circle cx="400" cy="300" r="20" fill="none" stroke="#d1d5db" />
+
+</svg>

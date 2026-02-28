@@ -1,0 +1,231 @@
+{
+  "aggregate": {
+    "counters": {
+      "vusers.created_by_name.Multi-turn Chat Conversation": 45,
+      "vusers.created": 45,
+      "websocket.messages_sent": 135,
+      "vusers.failed": 0,
+      "vusers.completed": 45
+    },
+    "rates": {
+      "websocket.send_rate": 4
+    },
+    "firstCounterAt": 1771750548174,
+    "firstHistogramAt": 1771750566215,
+    "lastCounterAt": 1771750580695,
+    "lastHistogramAt": 1771750580695,
+    "firstMetricAt": 1771750548174,
+    "lastMetricAt": 1771750580695,
+    "period": 1771750580000,
+    "summaries": {
+      "vusers.session_length": {
+        "min": 18006.8,
+        "max": 18061.3,
+        "count": 45,
+        "mean": 18024,
+        "p50": 17859.2,
+        "median": 17859.2,
+        "p75": 17859.2,
+        "p90": 17859.2,
+        "p95": 17859.2,
+        "p99": 18220,
+        "p999": 18220
+      }
+    },
+    "histograms": {
+      "vusers.session_length": {
+        "min": 18006.8,
+        "max": 18061.3,
+        "count": 45,
+        "mean": 18024,
+        "p50": 17859.2,
+        "median": 17859.2,
+        "p75": 17859.2,
+        "p90": 17859.2,
+        "p95": 17859.2,
+        "p99": 18220,
+        "p999": 18220
+      }
+    }
+  },
+  "intermediate": [
+    {
+      "counters": {
+        "vusers.created_by_name.Multi-turn Chat Conversation": 4,
+        "vusers.created": 4,
+        "websocket.messages_sent": 4
+      },
+      "rates": {
+        "websocket.send_rate": 3
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1771750548174,
+      "lastCounterAt": 1771750549675,
+      "firstMetricAt": 1771750548174,
+      "lastMetricAt": 1771750549675,
+      "period": "1771750540000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Multi-turn Chat Conversation": 30,
+        "vusers.created": 30,
+        "websocket.messages_sent": 43
+      },
+      "rates": {
+        "websocket.send_rate": 4
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1771750550173,
+      "lastCounterAt": 1771750559930,
+      "firstMetricAt": 1771750550173,
+      "lastMetricAt": 1771750559930,
+      "period": "1771750550000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "websocket.messages_sent": 69,
+        "vusers.created_by_name.Multi-turn Chat Conversation": 11,
+        "vusers.created": 11,
+        "vusers.failed": 0,
+        "vusers.completed": 8
+      },
+      "rates": {
+        "websocket.send_rate": 7
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1771750560015,
+      "firstHistogramAt": 1771750566215,
+      "lastCounterAt": 1771750569981,
+      "lastHistogramAt": 1771750569700,
+      "firstMetricAt": 1771750560015,
+      "lastMetricAt": 1771750569981,
+      "period": "1771750560000",
+      "summaries": {
+        "vusers.session_length": {
+          "min": 18006.8,
+          "max": 18040.2,
+          "count": 8,
+          "mean": 18020.1,
+          "p50": 17859.2,
+          "median": 17859.2,
+          "p75": 17859.2,
+          "p90": 17859.2,
+          "p95": 17859.2,
+          "p99": 17859.2,
+          "p999": 17859.2
+        }
+      },
+      "histograms": {
+        "vusers.session_length": {
+          "min": 18006.8,
+          "max": 18040.2,
+          "count": 8,
+          "mean": 18020.1,
+          "p50": 17859.2,
+          "median": 17859.2,
+          "p75": 17859.2,
+          "p90": 17859.2,
+          "p95": 17859.2,
+          "p99": 17859.2,
+          "p999": 17859.2
+        }
+      }
+    },
+    {
+      "counters": {
+        "vusers.failed": 0,
+        "vusers.completed": 34,
+        "websocket.messages_sent": 19
+      },
+      "rates": {
+        "websocket.send_rate": 4
+      },
+      "websocket.send_rate": null,
+      "firstCounterAt": 1771750570200,
+      "firstHistogramAt": 1771750570200,
+      "lastCounterAt": 1771750579945,
+      "lastHistogramAt": 1771750579945,
+      "firstMetricAt": 1771750570200,
+      "lastMetricAt": 1771750579945,
+      "period": "1771750570000",
+      "summaries": {
+        "vusers.session_length": {
+          "min": 18013.8,
+          "max": 18061.3,
+          "count": 34,
+          "mean": 18024.7,
+          "p50": 17859.2,
+          "median": 17859.2,
+          "p75": 17859.2,
+          "p90": 17859.2,
+          "p95": 17859.2,
+          "p99": 17859.2,
+          "p999": 17859.2
+        }
+      },
+      "histograms": {
+        "vusers.session_length": {
+          "min": 18013.8,
+          "max": 18061.3,
+          "count": 34,
+          "mean": 18024.7,
+          "p50": 17859.2,
+          "median": 17859.2,
+          "p75": 17859.2,
+          "p90": 17859.2,
+          "p95": 17859.2,
+          "p99": 17859.2,
+          "p999": 17859.2
+        }
+      }
+    },
+    {
+      "counters": {
+        "vusers.failed": 0,
+        "vusers.completed": 3
+      },
+      "rates": {},
+      "firstCounterAt": 1771750580197,
+      "firstHistogramAt": 1771750580197,
+      "lastCounterAt": 1771750580695,
+      "lastHistogramAt": 1771750580695,
+      "firstMetricAt": 1771750580197,
+      "lastMetricAt": 1771750580695,
+      "period": "1771750580000",
+      "summaries": {
+        "vusers.session_length": {
+          "min": 18020.9,
+          "max": 18037,
+          "count": 3,
+          "mean": 18026.6,
+          "p50": 17859.2,
+          "median": 17859.2,
+          "p75": 17859.2,
+          "p90": 17859.2,
+          "p95": 17859.2,
+          "p99": 17859.2,
+          "p999": 17859.2
+        }
+      },
+      "histograms": {
+        "vusers.session_length": {
+          "min": 18020.9,
+          "max": 18037,
+          "count": 3,
+          "mean": 18026.6,
+          "p50": 17859.2,
+          "median": 17859.2,
+          "p75": 17859.2,
+          "p90": 17859.2,
+          "p95": 17859.2,
+          "p99": 17859.2,
+          "p999": 17859.2
+        }
+      }
+    }
+  ]
+}

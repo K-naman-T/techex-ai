@@ -1,0 +1,53 @@
+# Gemini Flash — Chat Service Concurrency Test
+# Each user: connects → sends 3 chat messages (multi-turn) → disconnects
+# Uses the WebSocket "chat" message type → Gemini 2.0 Flash + TTS pipeline
+
+config:
+  target: "ws://localhost:3005/api/ws"
+  phases:
+    # Phase 1: 10 users chatting simultaneously
+    - name: "10 simultaneous chat users"
+      duration: 5
+      arrivalCount: 10
+
+    # Cooldown
+    - name: "Cooldown"
+      duration: 30
+      arrivalCount: 0
+
+    # Phase 2: 15 users chatting simultaneously
+    - name: "15 simultaneous chat users"
+      duration: 5
+      arrivalCount: 15
+
+    # Cooldown
+    - name: "Cooldown"
+      duration: 30
+      arrivalCount: 0
+
+    # Phase 3: 20 users chatting simultaneously
+    - name: "20 simultaneous chat users"
+      duration: 5
+      arrivalCount: 20
+
+  engines:
+    ws: {}
+
+scenarios:
+  - name: "Multi-turn Chat Conversation"
+    engine: ws
+    flow:
+      # Turn 1: User asks about the event
+      - send: '{"type": "chat", "message": "What is TechEx about?", "history": [], "language": "en", "userMetadata": {"userName": "LoadTestUser"}}'
+      # Wait for Gemini response + TTS streaming
+      - think: 6
+
+      # Turn 2: Follow-up question (with history from turn 1)
+      - send: '{"type": "chat", "message": "What are the most interesting projects to see?", "history": [{"role": "user", "content": "What is TechEx about?"}, {"role": "model", "content": "TechEx is a technology exhibition showcasing innovative student projects."}], "language": "en", "userMetadata": {"userName": "LoadTestUser"}}'
+      # Wait for response
+      - think: 6
+
+      # Turn 3: Another follow-up
+      - send: '{"type": "chat", "message": "Where can I find the AI projects?", "history": [{"role": "user", "content": "What is TechEx about?"}, {"role": "model", "content": "TechEx is a technology exhibition."}, {"role": "user", "content": "What are the most interesting projects?"}, {"role": "model", "content": "There are several exciting projects on display."}], "language": "en", "userMetadata": {"userName": "LoadTestUser"}}'
+      # Wait for final response
+      - think: 6

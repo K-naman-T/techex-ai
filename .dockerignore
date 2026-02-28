@@ -1,0 +1,15 @@
+node_modules
+dist
+.env
+.git
+.DS_Store
+*.sqlite
+logs
+server.log
+google-credentials.json
+tmp-google-credentials.json
+
+# Only ignore top-level screenshots/unnecessary images
+/image*.png
+/image*.jpg
+/architecture.mmd
