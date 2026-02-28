@@ -56,7 +56,7 @@ export const handleWSMessage = async (
             ctx.geminiLiveSession.sendRealtimeInput({
               media: {
                 data: msg.data, // already base64
-                mimeType: "audio/pcm",
+                mimeType: "audio/pcm;rate=16000",
               },
             });
           } catch (e: any) {
