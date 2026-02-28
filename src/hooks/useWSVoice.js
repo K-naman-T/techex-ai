@@ -7,7 +7,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
  *   2. "gemini_live" - Continuous mic → Gemini Live API (built-in VAD+STT+LLM+TTS)
  *
  * NOTE: No client-side VAD — both backends use server-side VAD.
- *       Mic audio is streamed continuously via ScriptProcessorNode.
+ *       Mic audio is streamed continuously via AudioWorkletNode.
  */
 export const useWSVoice = () => {
   // Connection & Active States
@@ -27,9 +27,7 @@ export const useWSVoice = () => {
   const wsRef = useRef(null);
   const isVoiceModeActiveRef = useRef(false);
 
-  // Refs for Playback Queue
-  const audioQueueRef = useRef([]);
-  const isPlayingRef = useRef(false);
+  const nextStartTimeRef = useRef(0);
   const analyserRef = useRef(null);
   const activeSourceRef = useRef(null);
 
@@ -43,7 +41,7 @@ export const useWSVoice = () => {
   const initAudio = useCallback(() => {
     if (!audioContextRef.current) {
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      const ctx = new AudioContextClass({ sampleRate: 16000 });
+      const ctx = new AudioContextClass();
       audioContextRef.current = ctx;
 
       const analyser = ctx.createAnalyser();
@@ -60,38 +58,14 @@ export const useWSVoice = () => {
   // ============= PLAYBACK =============
 
   const stopSpeaking = useCallback(() => {
-    audioQueueRef.current = [];
+    nextStartTimeRef.current = 0;
     if (activeSourceRef.current) {
       try { activeSourceRef.current.stop(); } catch (e) { }
       activeSourceRef.current = null;
     }
-    isPlayingRef.current = false;
     setIsSpeaking(false);
   }, []);
 
-  const playNextInQueue = useCallback(async () => {
-    if (audioQueueRef.current.length === 0) {
-      isPlayingRef.current = false;
-      setIsSpeaking(false);
-      return;
-    }
-
-    isPlayingRef.current = true;
-    setIsSpeaking(true);
-    const ctx = initAudio();
-    const buffer = audioQueueRef.current.shift();
-
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(analyserRef.current);
-
-    source.onended = () => {
-      activeSourceRef.current = null;
-      playNextInQueue();
-    };
-    activeSourceRef.current = source;
-    source.start(0);
-  }, [initAudio]);
 
 
   // Raw PCM decode (for Gemini Live — sends raw 24kHz 16-bit PCM)
@@ -124,12 +98,23 @@ export const useWSVoice = () => {
     const audioBuffer = ctx.createBuffer(1, float32.length, sampleRate);
     audioBuffer.getChannelData(0).set(float32);
 
-    audioQueueRef.current.push(audioBuffer);
-    if (!isPlayingRef.current) {
-      playNextInQueue();
-    }
-  }, [initAudio, playNextInQueue]);
+    // Gapless playback with scheduled start time
+    const source = ctx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(analyserRef.current);
 
+    const now = ctx.currentTime;
+    const startTime = Math.max(now, nextStartTimeRef.current);
+    source.start(startTime);
+    nextStartTimeRef.current = startTime + audioBuffer.duration;
+
+    setIsSpeaking(true);
+    source.onended = () => {
+      if (ctx.currentTime >= nextStartTimeRef.current - 0.05) {
+        setIsSpeaking(false);
+      }
+    };
+  }, [initAudio]);
   // ============= WEBSOCKET =============
 
   const connect = useCallback(() => {
@@ -219,6 +204,7 @@ export const useWSVoice = () => {
     micStreamRef.current = stream;
 
     const audioCtx = initAudio();
+    await audioCtx.audioWorklet.addModule('/pcm-processor.js');
     const source = audioCtx.createMediaStreamSource(stream);
 
     // VAD Configuration: Stop sending chunks if volume stays below threshold
@@ -227,13 +213,13 @@ export const useWSVoice = () => {
     let silenceChunkCount = 0;
     const maxSilenceChunks = 20; // ~1.2 seconds of silence before cutting stream (adjusted for smaller buffer)
 
-    // Use ScriptProcessorNode for continuous PCM capture
-    const processor = audioCtx.createScriptProcessor(1024, 1, 1);
-    processor.onaudioprocess = (e) => {
+    // Use AudioWorkletNode for continuous PCM capture
+    const workletNode = new AudioWorkletNode(audioCtx, 'pcm-processor');
+    workletNode.port.onmessage = (e) => {
       if (!isVoiceModeActiveRef.current) return;
       if (wsRef.current?.readyState !== WebSocket.OPEN) return;
 
-      const float32 = e.inputBuffer.getChannelData(0);
+      const float32 = e.data;
 
       // 1. Calculate Volume (RMS)
       let sumSquares = 0.0;
@@ -269,9 +255,8 @@ export const useWSVoice = () => {
       wsRef.current.send(JSON.stringify({ type: messageType, data: base64 }));
     };
 
-    source.connect(processor);
-    processor.connect(audioCtx.destination);
-    micProcessorRef.current = { source, processor };
+    source.connect(workletNode);
+    micProcessorRef.current = { source, workletNode };
 
     console.log(`[Mic] Streaming started (type: ${messageType})`);
   }, [initAudio]);
@@ -283,7 +268,7 @@ export const useWSVoice = () => {
     }
     if (micProcessorRef.current) {
       micProcessorRef.current.source.disconnect();
-      micProcessorRef.current.processor.disconnect();
+      micProcessorRef.current.workletNode.disconnect();
       micProcessorRef.current = null;
     }
     console.log("[Mic] Streaming stopped.");

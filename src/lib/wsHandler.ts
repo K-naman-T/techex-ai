@@ -52,10 +52,12 @@ export const handleWSMessage = async (
       case "gemini_audio_in":
         if (ctx.geminiLiveSession) {
           try {
-            ctx.geminiLiveSession.sendRealtimeInput([{
-              data: msg.data, // already base64
-              mimeType: "audio/pcm;rate=16000",
-            }]);
+            ctx.geminiLiveSession.sendRealtimeInput({
+              media: {
+                data: msg.data, // already base64
+                mimeType: "audio/pcm;rate=16000",
+              },
+            });
           } catch (e: any) {
             console.error("[Gemini Live] sendRealtimeInput error:", e.message || e);
           }
@@ -132,16 +134,13 @@ STRICT RESPONSE GUIDELINES:
 ${languageInstruction}
 `;
 
-  const model = "gemini-2.5-flash-native-audio-latest"; // Flagship Live API model as requested
+  const model = "gemini-2.5-flash-native-audio-preview-12-2025"; // Flagship Live API model as requested
   const liveConfig = {
     responseModalities: [Modality.AUDIO],
     systemInstruction: systemInstruction,
     speechConfig: {
       voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } }, // Correct official voice name
     },
-    // Parameters moved out of generationConfig due to @google/genai deprecation warning (Q3 2025 format)
-    temperature: 0.5,
-    maxOutputTokens: 150,
   };
 
   console.log("[Gemini Live] Connecting to session with model:", model);
