@@ -147,15 +147,13 @@ Stick to the language specified above unless the user explicitly asks you to swi
     },
     realtimeInputConfig: {
       automaticActivityDetection: {
-        startOfSpeechSensitivity: "START_OF_SPEECH_SENSITIVITY_HIGH",
-        endOfSpeechSensitivity: "END_OF_SPEECH_SENSITIVITY_LOW",
+        startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
+        endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
       },
-      activityHandling: "START_OF_ACTIVITY_HANDLING_INTERRUPTS",
+      activityHandling: "START_OF_ACTIVITY_INTERRUPTS",
       turnCoverage: "TURN_INCLUDES_ALL_INPUT",
     },
-    generationConfig: {
-      maxOutputTokens: 256,
-    },
+    maxOutputTokens: 256,
     thinkingConfig: {
       thinkingBudget: 0,
     },

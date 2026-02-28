@@ -36,6 +36,7 @@ export const useWSVoice = ({ onShowMap } = {}) => {
   const micProcessorRef = useRef(null);
   const activeBackendRef = useRef('gemini_live');
   const lastLanguageRef = useRef('hi-IN');
+  const workletLoadedRef = useRef(false);
 
   // Initialize Web Audio Context & Analyser
   const initAudio = useCallback(() => {
@@ -209,7 +210,10 @@ export const useWSVoice = ({ onShowMap } = {}) => {
     micStreamRef.current = stream;
 
     const audioCtx = initAudio();
-    await audioCtx.audioWorklet.addModule('/pcm-processor.js');
+    if (!workletLoadedRef.current) {
+      await audioCtx.audioWorklet.addModule('/pcm-processor.js');
+      workletLoadedRef.current = true;
+    }
     const source = audioCtx.createMediaStreamSource(stream);
 
     // Use AudioWorkletNode for continuous PCM capture (server-side VAD handles silence detection)
