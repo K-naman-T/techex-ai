@@ -100,125 +100,115 @@ export const MapModal = ({ isOpen, onClose, targetStall }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/90 p-2 sm:p-4 animate-in fade-in duration-300">
-            {/* Modal Container */}
-            <div className="relative w-full max-w-5xl max-h-[85dvh] bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xl flex flex-col lg:flex-row animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex flex-col bg-white animate-in zoom-in-95 duration-200 sm:p-4 sm:bg-zinc-950/90 items-center justify-center">
 
-                {/* Close Button */}
-                <button
-                    onClick={onClose}
-                    className="absolute top-2 right-2 sm:top-4 sm:right-4 z-20 p-2 bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-900 rounded-full transition-all border border-slate-200 shadow-sm"
-                >
-                    <X size={18} />
-                </button>
+            {/* Modal Container for Desktop (acts like full screen on mobile due to w-full h-full) */}
+            <div className="relative w-full h-full max-w-6xl sm:h-[90dvh] sm:rounded-2xl border-slate-200 sm:border bg-white flex flex-col overflow-hidden shadow-2xl">
 
-                {/* Info Panel */}
-                <div className="p-4 sm:p-6 lg:p-8 lg:w-1/3 border-b lg:border-b-0 lg:border-r border-slate-200 bg-slate-50 flex flex-col justify-center shrink-0 text-slate-900">
-                    <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-                        <Navigation size={20} className="sm:w-6 sm:h-6 text-[#06b6d4]" />
-                        <h2 className="text-base sm:text-lg font-bold tracking-tight uppercase">Wayfinding</h2>
+                {/* Header Strip */}
+                <div className="flex-none px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between border-b border-slate-200 bg-slate-50 z-10 shadow-sm">
+                    <div className="flex flex-col">
+                        <div className="flex items-center gap-2 text-slate-500 mb-1">
+                            <Navigation size={14} className="text-[#06b6d4]" />
+                            <span className="text-[10px] sm:text-xs uppercase font-bold tracking-wider">Wayfinding Destination</span>
+                        </div>
+                        <div className="text-2xl sm:text-3xl font-extrabold text-[#0ea5e9] leading-none">{targetStall || "Main Hall"}</div>
                     </div>
 
-                    <div className="space-y-4 sm:space-y-6">
-                        <div>
-                            <span className="text-[10px] sm:text-xs text-slate-500 uppercase font-semibold">Destination</span>
-                            <div className="text-xl sm:text-3xl font-bold text-slate-900 mt-1">{targetStall || "Main Hall"}</div>
-                        </div>
-
-                        <div className="p-3 sm:p-4 bg-white border border-slate-200 rounded-lg shadow-sm">
-                            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                                Proceed to the <span className="text-[#06b6d4] font-bold">highlighted marker</span> starting from the Entrance.
-                            </p>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                            <span className="px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-medium bg-white border border-slate-200 text-slate-600 rounded-full shadow-sm">Step-free</span>
-                            <span className="px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-medium bg-[#22c55e]/10 border border-[#22c55e]/20 text-[#22c55e] rounded-full">~2 min</span>
-                        </div>
-                    </div>
-
-                    {/* Zone Legend */}
-                    <div className="mt-8 pt-6 border-t border-slate-200">
-                        <span className="text-[10px] sm:text-xs text-slate-500 uppercase font-semibold mb-3 block">Zones</span>
-                        <div className="grid grid-cols-2 gap-2">
-                            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#9333ea]"></div><span className="text-xs text-slate-600 font-medium">Productivity</span></div>
-                            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#22c55e]"></div><span className="text-xs text-slate-600 font-medium">Sustainability</span></div>
-                            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#ca8a04]"></div><span className="text-xs text-slate-600 font-medium">Cost</span></div>
-                            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#ef4444]"></div><span className="text-xs text-slate-600 font-medium">Safety</span></div>
-                            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#06b6d4]"></div><span className="text-xs text-slate-600 font-medium">Reliability</span></div>
-                        </div>
-                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-3 bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-900 rounded-full transition-all border border-slate-200 shadow-sm"
+                    >
+                        <X size={20} />
+                    </button>
                 </div>
 
                 {/* Map View */}
-                <div className="relative bg-white flex-1 min-h-[300px] sm:min-h-[450px] lg:min-h-[500px] overflow-hidden">
-                    <svg
-                        className="w-full h-full"
-                        viewBox="0 0 900 650"
-                        preserveAspectRatio="xMidYMid meet"
-                    >
-                        {/* Background */}
-                        <rect width="900" height="650" fill="#ffffff" />
+                <div
+                    ref={mapContainerRef}
+                    className="flex-1 bg-[#f8fafc] overflow-auto overscroll-contain cursor-grab active:cursor-grabbing relative"
+                >
+                    <div className="w-max min-w-full h-full min-h-[600px] flex items-center justify-center p-4">
+                        <svg
+                            className="w-[1000px] sm:w-[1200px] max-w-none h-auto drop-shadow-md"
+                            viewBox="0 0 900 650"
+                            preserveAspectRatio="xMidYMid meet"
+                        >
+                            {/* Background */}
+                            <rect width="900" height="650" fill="#ffffff" />
 
-                        {/* Grid */}
-                        <defs>
-                            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#94a3b8" strokeWidth="1" opacity="0.15" />
-                            </pattern>
-                        </defs>
-                        <rect width="900" height="650" fill="url(#grid)" />
+                            {/* Grid */}
+                            <defs>
+                                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#94a3b8" strokeWidth="1" opacity="0.15" />
+                                </pattern>
+                            </defs>
+                            <rect width="900" height="650" fill="url(#grid)" />
 
-                        {/* Central Logo */}
-                        <text x="450" y="325" textAnchor="middle" fill="#0f172a" opacity="0.05" fontSize="48" fontWeight="900" letterSpacing="8" fontFamily="Inter, system-ui, sans-serif">TECH EX</text>
-                        <text x="450" y="380" textAnchor="middle" fill="#0f172a" opacity="0.03" fontSize="32" fontWeight="bold" letterSpacing="12" fontFamily="Inter, system-ui, sans-serif">2026</text>
+                            {/* Central Logo */}
+                            <text x="450" y="325" textAnchor="middle" fill="#0f172a" opacity="0.05" fontSize="48" fontWeight="900" letterSpacing="8" fontFamily="Inter, system-ui, sans-serif">TECH EX</text>
+                            <text x="450" y="380" textAnchor="middle" fill="#0f172a" opacity="0.03" fontSize="32" fontWeight="bold" letterSpacing="12" fontFamily="Inter, system-ui, sans-serif">2026</text>
 
-                        {/* Zone Labels */}
-                        <text x="160" y="420" transform="rotate(-90 160 420)" fill={THEME_COLORS.purple} opacity="0.6" fontSize="14" fontWeight="bold" letterSpacing="4" textAnchor="middle" fontFamily="Inter, system-ui, sans-serif">PRODUCTIVITY</text>
-                        <text x="160" y="220" transform="rotate(-90 160 220)" fill={THEME_COLORS.green} opacity="0.6" fontSize="14" fontWeight="bold" letterSpacing="4" textAnchor="middle" fontFamily="Inter, system-ui, sans-serif">SUSTAINABILITY</text>
-                        <text x="450" y="150" fill={THEME_COLORS.gold} opacity="0.6" fontSize="14" fontWeight="bold" letterSpacing="4" textAnchor="middle" fontFamily="Inter, system-ui, sans-serif">COST</text>
-                        <text x="740" y="270" transform="rotate(90 740 270)" fill={THEME_COLORS.red} opacity="0.6" fontSize="14" fontWeight="bold" letterSpacing="4" textAnchor="middle" fontFamily="Inter, system-ui, sans-serif">SAFETY</text>
-                        <text x="740" y="450" transform="rotate(90 740 450)" fill={THEME_COLORS.teal} opacity="0.6" fontSize="14" fontWeight="bold" letterSpacing="4" textAnchor="middle" fontFamily="Inter, system-ui, sans-serif">RELIABILITY</text>
+                            {/* Zone Labels */}
+                            <text x="160" y="420" transform="rotate(-90 160 420)" fill={THEME_COLORS.purple} opacity="0.6" fontSize="14" fontWeight="bold" letterSpacing="4" textAnchor="middle" fontFamily="Inter, system-ui, sans-serif">PRODUCTIVITY</text>
+                            <text x="160" y="220" transform="rotate(-90 160 220)" fill={THEME_COLORS.green} opacity="0.6" fontSize="14" fontWeight="bold" letterSpacing="4" textAnchor="middle" fontFamily="Inter, system-ui, sans-serif">SUSTAINABILITY</text>
+                            <text x="450" y="150" fill={THEME_COLORS.gold} opacity="0.6" fontSize="14" fontWeight="bold" letterSpacing="4" textAnchor="middle" fontFamily="Inter, system-ui, sans-serif">COST</text>
+                            <text x="740" y="270" transform="rotate(90 740 270)" fill={THEME_COLORS.red} opacity="0.6" fontSize="14" fontWeight="bold" letterSpacing="4" textAnchor="middle" fontFamily="Inter, system-ui, sans-serif">SAFETY</text>
+                            <text x="740" y="450" transform="rotate(90 740 450)" fill={THEME_COLORS.teal} opacity="0.6" fontSize="14" fontWeight="bold" letterSpacing="4" textAnchor="middle" fontFamily="Inter, system-ui, sans-serif">RELIABILITY</text>
 
-                        {/* Empty Stalls */}
-                        {EMPTY_STALLS.map((pos, idx) => (
-                            <g key={`empty-${idx}`} transform={`translate(${pos.x}, ${pos.y})`}>
-                                <rect width="55" height="43" rx="4" fill={THEME_COLORS.empty} stroke="#cbd5e1" strokeWidth="1" />
+                            {/* Empty Stalls */}
+                            {EMPTY_STALLS.map((pos, idx) => (
+                                <g key={`empty-${idx}`} transform={`translate(${pos.x}, ${pos.y})`}>
+                                    <rect width="55" height="43" rx="4" fill={THEME_COLORS.empty} stroke="#cbd5e1" strokeWidth="1" />
+                                </g>
+                            ))}
+
+                            {/* Active Stalls */}
+                            {Object.entries(STALL_POSITIONS).map(([id, pos]) => (
+                                <g key={id} transform={`translate(${pos.x}, ${pos.y})`}>
+                                    <rect width="55" height="43" rx="4" fill={THEME_COLORS[pos.theme]} opacity="0.9" />
+                                    <text x="27.5" y="26.5" textAnchor="middle" fill="#ffffff" fontSize="14" fontWeight="bold" fontFamily="Inter, system-ui, sans-serif">{id}</text>
+                                </g>
+                            ))}
+
+                            {/* ENTRY Marker */}
+                            <g transform="translate(450, 580)">
+                                <path d="M -10 10 L 0 -5 L 10 10" fill="none" stroke="#22c55e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                                <text x="0" y="28" textAnchor="middle" fill="#22c55e" fontSize="12" fontWeight="bold" fontFamily="Inter, system-ui, sans-serif">ENTRY</text>
                             </g>
-                        ))}
 
-                        {/* Active Stalls */}
-                        {Object.entries(STALL_POSITIONS).map(([id, pos]) => (
-                            <g key={id} transform={`translate(${pos.x}, ${pos.y})`}>
-                                <rect width="55" height="43" rx="4" fill={THEME_COLORS[pos.theme]} opacity="0.9" />
-                                <text x="27.5" y="26.5" textAnchor="middle" fill="#ffffff" fontSize="14" fontWeight="bold" fontFamily="Inter, system-ui, sans-serif">{id}</text>
+                            {/* EXIT Markers */}
+                            <g transform="translate(835, 180)">
+                                <path d="M -10 -8 L 0 0 L -10 8" fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                                <text x="-5" y="22" textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="bold" fontFamily="Inter, system-ui, sans-serif">EXIT</text>
                             </g>
-                        ))}
+                            <g transform="translate(835, 425)">
+                                <path d="M -10 -8 L 0 0 L -10 8" fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                                <text x="-5" y="22" textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="bold" fontFamily="Inter, system-ui, sans-serif">EXIT</text>
+                            </g>
 
-                        {/* ENTRY Marker */}
-                        <g transform="translate(450, 580)">
-                            <path d="M -10 10 L 0 -5 L 10 10" fill="none" stroke="#22c55e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                            <text x="0" y="28" textAnchor="middle" fill="#22c55e" fontSize="12" fontWeight="bold" fontFamily="Inter, system-ui, sans-serif">ENTRY</text>
-                        </g>
+                            {/* End Point (Target) */}
+                            <g className="animate-bounce" style={{ transformOrigin: 'center center' }}>
+                                <circle cx={targetPos.x} cy={targetPos.y} r="22" fill="#06b6d4" opacity="0.25" className="animate-ping" />
+                                <path d={`M ${targetPos.x} ${targetPos.y + 4} A 16 16 0 1 0 ${targetPos.x} ${targetPos.y - 28} A 16 16 0 0 0 ${targetPos.x} ${targetPos.y + 4} Z`} fill="#0ea5e9" stroke="#fff" strokeWidth="2" strokeLinejoin="round" />
+                                <circle cx={targetPos.x} cy={targetPos.y - 12} r="6" fill="#fff" />
+                            </g>
+                            <text x={targetPos.x} y={targetPos.y - 35} textAnchor="middle" fontFamily="Inter, system-ui, sans-serif" fontSize="12" fill="#0ea5e9" fontWeight="900" className="drop-shadow-sm">{targetStall}</text>
 
-                        {/* EXIT Markers */}
-                        <g transform="translate(835, 180)">
-                            <path d="M -10 -8 L 0 0 L -10 8" fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                            <text x="-5" y="22" textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="bold" fontFamily="Inter, system-ui, sans-serif">EXIT</text>
-                        </g>
-                        <g transform="translate(835, 425)">
-                            <path d="M -10 -8 L 0 0 L -10 8" fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                            <text x="-5" y="22" textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="bold" fontFamily="Inter, system-ui, sans-serif">EXIT</text>
-                        </g>
+                        </svg>
+                    </div>
+                </div>
 
-                        {/* End Point (Target) */}
-                        <g className="animate-bounce" style={{ transformOrigin: 'center center' }}>
-                            <circle cx={targetPos.x} cy={targetPos.y} r="22" fill="#06b6d4" opacity="0.25" className="animate-ping" />
-                            <path d={`M ${targetPos.x} ${targetPos.y + 4} A 16 16 0 1 0 ${targetPos.x} ${targetPos.y - 28} A 16 16 0 0 0 ${targetPos.x} ${targetPos.y + 4} Z`} fill="#0ea5e9" stroke="#fff" strokeWidth="2" strokeLinejoin="round" />
-                            <circle cx={targetPos.x} cy={targetPos.y - 12} r="6" fill="#fff" />
-                        </g>
-                        <text x={targetPos.x} y={targetPos.y - 35} textAnchor="middle" fontFamily="Inter, system-ui, sans-serif" fontSize="12" fill="#0ea5e9" fontWeight="900" className="drop-shadow-sm">{targetStall}</text>
-
-                    </svg>
+                {/* Legend (Bottom Bar) */}
+                <div className="flex-none p-3 border-t border-slate-200 bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] overflow-x-auto z-10">
+                    <div className="flex items-center gap-4 min-w-max px-2">
+                        <span className="text-[10px] text-slate-500 uppercase font-bold mr-2">Zones:</span>
+                        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#9333ea]"></div><span className="text-[11px] text-slate-700 font-bold">Productivity</span></div>
+                        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#22c55e]"></div><span className="text-[11px] text-slate-700 font-bold">Sustainability</span></div>
+                        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#ca8a04]"></div><span className="text-[11px] text-slate-700 font-bold">Cost</span></div>
+                        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#ef4444]"></div><span className="text-[11px] text-slate-700 font-bold">Safety</span></div>
+                        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#06b6d4]"></div><span className="text-[11px] text-slate-700 font-bold">Reliability</span></div>
+                    </div>
                 </div>
             </div>
         </div>
