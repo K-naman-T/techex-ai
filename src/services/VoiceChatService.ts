@@ -49,22 +49,8 @@ export class VoiceChatService {
                 ? "Speak strictly in Hindi. Your output must be localized for spoken Hindi."
                 : "Speak strictly in English.";
 
-        // Assemble unified system instruction
-        const systemInstruction = `
-Your name is TechEx AI Assistant. You are the AI Assistant for **${config.getEventInfo()?.name || "TechEx"}**.
-Location: ${config.getEventInfo()?.location || "Event Venue"}. Date: ${config.getEventInfo()?.date || "Today"}.
-${config.getEventInfo()?.description || ""}
-
-${userContext}
-
-**Knowledge Base:**
-${config.getProjectsContext()}
-
-**STRICT VOICE GUIDELINES:**
-1. Keep answers to 1-2 short sentences. Let the user speak.
-2. If asked where a stall is, explicitly call the \`show_map\` tool with the stall number.
-3. ${langInstruction}
-`;
+        // Minified system instruction for lower TTFB
+        const systemInstruction = `You are TechEx AI Assistant for ${config.getEventInfo()?.name || "TechEx"} at ${config.getEventInfo()?.location || "Event Venue"} on ${config.getEventInfo()?.date || "Today"}. ${userContext} Knowledge: ${config.getProjectsContext()} Rules: 1-2 short sentences max. Call show_map tool for stall locations. ${langInstruction}`;
 
         // Store config for potential reconnection
         ctx.voiceInitConfig = { config, language, userMetadata, isFirstTime, systemInstruction };
@@ -222,7 +208,9 @@ ${config.getProjectsContext()}
                         }
                     },
                     onclose: (event: any) => {
-                        console.log("[VoiceChatService] Gemini disconnected.", event);
+                        const code = event?.code ?? event;
+                        const reason = event?.reason || '';
+                        console.log(`[VoiceChatService] Gemini disconnected. Code: ${code}, Reason: ${reason}`);
                         if (ctx.geminiLiveSession === session) {
                             ctx.geminiLiveSession = undefined;
                         }

@@ -426,6 +426,20 @@ export const useWSVoice = ({ onShowMap } = {}) => {
     };
   }, [stopMicStream]);
 
+  // Enhanced warmup: pre-initialize AudioContext + WebSocket + AudioWorklet
+  const warmup = useCallback(async () => {
+    const ctx = initAudio();
+    // Pre-load AudioWorklet module (async, cached by browser)
+    if (!workletLoadedRef.current && ctx.audioWorklet) {
+      try {
+        await ctx.audioWorklet.addModule('/pcm-processor.js');
+        workletLoadedRef.current = true;
+      } catch (e) { /* ignore — will retry on mic start */ }
+    }
+    // Pre-connect WebSocket (cheap, persistent)
+    try { connect(); } catch (e) { }
+  }, [initAudio, connect]);
+
   return {
     isConnected,
     isVoiceModeActive,
@@ -441,6 +455,6 @@ export const useWSVoice = ({ onShowMap } = {}) => {
     sendChat,
     stopSpeaking,
     analyser: analyserRef.current,
-    warmup: initAudio
+    warmup
   };
 };
