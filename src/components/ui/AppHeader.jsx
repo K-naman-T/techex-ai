@@ -8,6 +8,8 @@ export const AppHeader = ({
     setTtsProvider,
     sttLanguage,
     setSttLanguage,
+    voiceMode,
+    setVoiceMode,
     onLogout,
     onClearHistory
 }) => {
@@ -51,6 +53,8 @@ export const AppHeader = ({
                     setTtsProvider={setTtsProvider}
                     sttLanguage={sttLanguage}
                     setSttLanguage={setSttLanguage}
+                    voiceMode={voiceMode}
+                    setVoiceMode={setVoiceMode}
                 />
 
                 {/* Logout Button */}

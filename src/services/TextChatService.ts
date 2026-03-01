@@ -43,7 +43,7 @@ ${langInstruction}
         const { message, history, language = 'en', userMetadata = {} } = body;
         const { userName, interests = [] } = userMetadata;
 
-        console.log(`[TextChatService] 📩 User${userName ? ` (${userName})` : ''}: "${message}"`);
+        console.log(`[TextChatService] Incoming request${userName ? ` from ${userName}` : ''}`);
 
         const apiKey = this.apiKeyManager.getNextKey();
         const ai = new GoogleGenAI({ apiKey });
@@ -101,7 +101,7 @@ ${langInstruction}
                         }
 
                         const cleanFullText = fullText.replace(/\[SHOW_MAP:\s*(.*?)\]/g, "");
-                        console.log(`[TextChatService] 🤖 Gemini: "${cleanFullText.substring(0, 200)}..."`);
+                        console.log(`[TextChatService] Response complete (${cleanFullText.length} chars)`);
 
                         // Success — exit retry loop
                         controller.close();

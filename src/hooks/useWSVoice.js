@@ -9,13 +9,23 @@ import { useState, useRef, useCallback, useEffect } from 'react';
  * NOTE: No client-side VAD — both backends use server-side VAD.
  *       Mic audio is streamed continuously via AudioWorkletNode.
  */
-export const useWSVoice = ({ onShowMap } = {}) => {
+export const useWSVoice = ({ onShowMap, voiceMode = 'native' } = {}) => {
   // Connection & Active States
   const [isConnected, setIsConnected] = useState(false);
   const [isVoiceModeActive, setIsVoiceModeActive] = useState(false);
-  const [isListening, setIsListening] = useState(false);
+  const [isListeningState, setIsListeningState] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [activeBackend, setActiveBackend] = useState('gemini_live');
+
+  const isListeningRef = useRef(false);
+
+  // Wrapper to keep ref in sync
+  const setIsListening = useCallback((val) => {
+    setIsListeningState(val);
+    isListeningRef.current = val;
+  }, []);
+
+  const isListening = isListeningState;
 
   // Data States
   const [transcript, setTranscript] = useState('');
@@ -27,11 +37,11 @@ export const useWSVoice = ({ onShowMap } = {}) => {
   const wsRef = useRef(null);
   const isVoiceModeActiveRef = useRef(false);
   const isSpeakingRef = useRef(false);
-  const isHoldingRef = useRef(false);
 
   const nextStartTimeRef = useRef(0);
   const analyserRef = useRef(null);
   const activeSourceRef = useRef(null);
+  const activeSourcesRef = useRef([]);
 
   // Mic streaming refs (shared by both backends)
   const micStreamRef = useRef(null);
@@ -40,11 +50,16 @@ export const useWSVoice = ({ onShowMap } = {}) => {
   const lastLanguageRef = useRef('hi-IN');
   const workletLoadedRef = useRef(false);
 
+  const voiceModeRef = useRef(voiceMode);
+  useEffect(() => {
+    voiceModeRef.current = voiceMode;
+  }, [voiceMode]);
+
   // Initialize Web Audio Context & Analyser
   const initAudio = useCallback(() => {
     if (!audioContextRef.current) {
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      const ctx = new AudioContextClass({ latencyHint: 'interactive' });
+      const ctx = new AudioContextClass({ latencyHint: 'interactive', sampleRate: 16000 });
       audioContextRef.current = ctx;
 
       const analyser = ctx.createAnalyser();
@@ -62,6 +77,13 @@ export const useWSVoice = ({ onShowMap } = {}) => {
 
   const stopSpeaking = useCallback(() => {
     nextStartTimeRef.current = 0;
+    // Stop ALL scheduled audio sources (gapless playback queues multiple)
+    if (activeSourcesRef.current.length > 0) {
+      for (const src of activeSourcesRef.current) {
+        try { src.stop(); src.disconnect(); } catch (e) { }
+      }
+      activeSourcesRef.current = [];
+    }
     if (activeSourceRef.current) {
       try { activeSourceRef.current.stop(); } catch (e) { }
       activeSourceRef.current = null;
@@ -71,27 +93,25 @@ export const useWSVoice = ({ onShowMap } = {}) => {
   }, []);
 
   const startInterrupt = useCallback(() => {
-    console.log("[Mic] Push-to-talk: START");
-    isHoldingRef.current = true;
-    stopSpeaking(); // Immediately cut off AI audio playback locally
+    console.log("[Mic] Tap-to-talk: START (Sending activity_start)");
+    stopSpeaking(); // Immediately cut off ALL AI audio playback
     setIsListening(true);
 
     // Signal Gemini that user is speaking (manual VAD)
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: "activity_start" }));
     }
-  }, [stopSpeaking]);
+  }, [stopSpeaking, setIsListening]);
 
   const stopInterrupt = useCallback(() => {
-    console.log("[Mic] Push-to-talk: END");
-    isHoldingRef.current = false;
+    console.log("[Mic] Tap-to-talk: END (Sending activity_end)");
     setIsListening(false);
 
     // Signal Gemini that user stopped speaking (manual VAD)
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: "activity_end" }));
     }
-  }, []);
+  }, [setIsListening]);
 
 
 
@@ -135,10 +155,16 @@ export const useWSVoice = ({ onShowMap } = {}) => {
     source.start(startTime);
     nextStartTimeRef.current = startTime + audioBuffer.duration;
 
+    // Track this source for stop/interrupt
+    activeSourcesRef.current.push(source);
+    activeSourceRef.current = source;
+
     setIsSpeaking(true);
     isSpeakingRef.current = true;
     source.onended = () => {
-      if (ctx.currentTime >= nextStartTimeRef.current - 0.05) {
+      // Remove from active sources
+      activeSourcesRef.current = activeSourcesRef.current.filter(s => s !== source);
+      if (activeSourcesRef.current.length === 0 && ctx.currentTime >= nextStartTimeRef.current - 0.05) {
         setIsSpeaking(false);
         isSpeakingRef.current = false;
       }
@@ -195,20 +221,21 @@ export const useWSVoice = ({ onShowMap } = {}) => {
 
           // === Gemini Live messages ===
           case 'gemini_live_ready':
-            console.log("[GeminiLive] Session ready.");
+            console.log(`[VoiceAPI (${voiceModeRef.current})] Session ready. Auto-starting listening phase.`);
+            // Automatically fire activity_start out of the gate so user doesn't have to tap again
             setIsListening(true);
+            try { ws.send(JSON.stringify({ type: "activity_start" })); } catch (e) { }
             break;
           case 'gemini_live_interrupted':
             console.log("[GeminiLive] Response interrupted by user.");
             stopSpeaking();
-            setIsListening(true); // User interrupted → back to listening
+            // manual tap starts the next listening phase
             break;
           case 'gemini_live_turn_complete':
             console.log("[GeminiLive] Turn complete.");
-            // AI finished speaking → back to listening for user
-            if (isVoiceModeActiveRef.current) {
-              setIsListening(true);
-            }
+            setIsSpeaking(false);
+            isSpeakingRef.current = false;
+            // manual tap starts the next listening phase
             break;
 
           case 'show_map':
@@ -225,7 +252,7 @@ export const useWSVoice = ({ onShowMap } = {}) => {
             break;
 
           case 'gemini_live_started':
-            console.log('[WS] Gemini Live session (re)started.');
+            console.log(`[VoiceAPI (${voiceModeRef.current})] session (re)started.`);
             // Resume listening state after reconnection
             if (isVoiceModeActiveRef.current) {
               setIsListening(true);
@@ -270,8 +297,8 @@ export const useWSVoice = ({ onShowMap } = {}) => {
     workletNode.port.onmessage = (e) => {
       if (!isVoiceModeActiveRef.current) return;
       if (wsRef.current?.readyState !== WebSocket.OPEN) return;
-      // Push-to-talk: only send audio while user is holding the orb
-      if (!isHoldingRef.current) return;
+      // Tap-to-talk: only send audio while user is confirmed to be listening
+      if (!isListeningRef.current) return;
 
       const float32 = e.data;
 
@@ -324,7 +351,7 @@ export const useWSVoice = ({ onShowMap } = {}) => {
     setActiveBackend('gemini_live');
 
     if (newState) {
-      console.log("[GeminiLive] Activating...");
+      console.log(`[VoiceAPI (${voiceModeRef.current})] Activating...`);
 
       // iOS / Safari: AudioContext MUST be resumed on user gesture
       const ctx = initAudio();
@@ -333,21 +360,23 @@ export const useWSVoice = ({ onShowMap } = {}) => {
       }
 
       try {
+        // MUST execute before any async `await` so iOS Safari grants microphone.
+        await startMicStream('gemini_audio_in');
+
         const ws = await connect();
         // Tell backend to start Gemini Live session with personalization
         // Safety check: Ensure userMetadata only contains serializable fields
         const safeMetadata = userMetadata && typeof userMetadata === 'object'
           ? { name: userMetadata.name, interests: userMetadata.interests }
           : null;
-
         ws.send(JSON.stringify({
           type: 'start_gemini_live',
           language: language,
           userMetadata: safeMetadata,
-          isFirstTime: isFirstTime
+          isFirstTime: isFirstTime,
+          mode: voiceModeRef.current
         }));
-        // Start continuous mic streaming
-        await startMicStream('gemini_audio_in');
+
         setIsListening(true);
       } catch (err) {
         console.error("[GeminiLive] Failed to activate:", err);
@@ -356,7 +385,7 @@ export const useWSVoice = ({ onShowMap } = {}) => {
         setActiveBackend('gemini_live');
       }
     } else {
-      console.log("[GeminiLive] Deactivating...");
+      console.log(`[VoiceAPI (${voiceModeRef.current})] Deactivating...`);
       stopMicStream();
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: 'stop_gemini_live' }));

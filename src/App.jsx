@@ -7,7 +7,7 @@ import { Onboarding } from './components/Onboarding';
 // UI Components
 import { StyledOrbAvatar } from './components/ui/StyledOrbAvatar';
 import { AppHeader } from './components/ui/AppHeader';
-import { ChatLayer, FocusOverlay } from './components/ui/ChatLayer';
+import { ChatModal } from './components/ui/ChatModal';
 import { BottomControlBar } from './components/ui/BottomControlBar';
 import { MapModal } from './components/ui/MapModal';
 import { Loader } from './components/ui/Loader';
@@ -42,8 +42,13 @@ function AppLayout() {
   const [showSettings, setShowSettings] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [mapTarget, setMapTarget] = useState(null);
+  const [voiceToast, setVoiceToast] = useState(null);
 
   // Hooks
+  const [voiceMode, setVoiceMode] = useState(() => {
+    return localStorage.getItem('techex_voicemode') || 'native';
+  });
+
   const {
     isVoiceModeActive,
     isListening,
@@ -62,6 +67,7 @@ function AppLayout() {
     warmup
   } = useWSVoice({
     onShowMap: (stallId) => { setMapTarget(stallId); setShowMap(true); },
+    voiceMode
   });
 
 
@@ -122,30 +128,38 @@ function AppLayout() {
     }
   }, [isChatFocused, isVoiceModeActive, toggleGeminiLiveMode, language, user]);
 
-  // Auto-activate voice mode after onboarding
+  // Removed auto-activation of voice mode. The user will manually initiate the pipeline via Tap and Hold.
+  // Voice connected toast
   useEffect(() => {
-    if (user && !loading && !localStorage.getItem('techex_greeted')) {
-      console.log("[App] New user detected, auto-activating voice mode...");
-      localStorage.setItem('techex_greeted', 'true');
-      const lang = mapLanguage(language);
-      // Slight delay to ensure UI is ready
-      setTimeout(() => {
-        toggleGeminiLiveMode(lang, user, true); // First time onboarding greets the user
-      }, 500);
+    if (isVoiceModeActive) {
+      setVoiceToast('Voice connected — tap the orb to speak');
+      const timer = setTimeout(() => setVoiceToast(null), 3000);
+      return () => clearTimeout(timer);
+    } else {
+      setVoiceToast(null);
     }
-  }, [user, loading, toggleGeminiLiveMode, language]);
+  }, [isVoiceModeActive]);
 
   // === Handlers ===
   const handleMicClick = (userOverride = null) => {
-    // Check if userOverride is a React Event (it will have .nativeEvent or .target)
     const isEvent = userOverride && (userOverride.nativeEvent || userOverride.target);
     const activeUser = (userOverride && !isEvent) ? userOverride : user;
-
-    console.log(`[App] Orb Clicked. Toggle Gemini Live Mode:`, !isVoiceModeActive);
     warmup();
-    const lang = mapLanguage(language);
-    // Explicit click is NOT a first-time greeting auto-prompt
-    toggleGeminiLiveMode(lang, activeUser, false);
+
+    if (!isVoiceModeActive) {
+      // 1. Inactive -> Connect and enter listening mode automatically
+      console.log(`[App] Orb Clicked. Activating voice mode.`);
+      const lang = mapLanguage(language);
+      toggleGeminiLiveMode(lang, activeUser, false);
+    } else if (isListening) {
+      // 2. Listening -> User taps to say they are finished speaking
+      console.log(`[App] Orb Clicked. Finishing turn (Tap-to-Talk).`);
+      stopInterrupt();
+    } else {
+      // 3. AI Processing/Speaking -> User taps to interrupt AI and talk again
+      console.log(`[App] Orb Clicked. Interrupting AI (Tap-to-Talk).`);
+      startInterrupt();
+    }
   };
 
   const handleStop = () => stopSpeaking();
@@ -158,17 +172,19 @@ function AppLayout() {
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
+    setIsChatFocused(true); // Auto-open chat modal on text send
 
     try {
       const chatLanguage = mapLanguage(language);
       // Pass user metadata for personalization
-      sendChat(text, null, messages, chatLanguage, {
+      await sendChat(text, null, messages, chatLanguage, {
         userName: user?.name,
         interests: user?.interests
       });
     } catch (error) {
       console.error("Error processing request:", error);
       setMessages(prev => [...prev, { role: 'ai', content: "I'm having trouble connecting." }]);
+    } finally {
       setLoading(false);
     }
   };
@@ -188,6 +204,14 @@ function AppLayout() {
   return (
     <div className="relative h-[100dvh] w-full bg-[#050505] overflow-hidden font-sans selection:bg-cyan-500/30">
       <Loader />
+
+      {/* Voice toast */}
+      {voiceToast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-5 py-3 bg-green-500/20 border border-green-500/40 backdrop-blur-md rounded-full text-green-300 text-sm font-mono tracking-wide animate-in slide-in-from-top-4 fade-in duration-300 shadow-lg">
+          {voiceToast}
+        </div>
+      )}
+
       {/* 3D Avatar Scene Replacement - Styled Orb */}
       <StyledOrbAvatar
         isSpeaking={isSpeaking}
@@ -202,8 +226,19 @@ function AppLayout() {
       />
 
 
-      {/* Focus Overlay */}
-      <FocusOverlay isFocused={isChatFocused} />
+      {/* Chat Modal (self-contained with its own input bar) */}
+      <ChatModal
+        isOpen={isChatFocused}
+        onClose={() => setIsChatFocused(false)}
+        messages={messages}
+        loading={loading}
+        input={input}
+        setInput={setInput}
+        onSend={() => handleSend(input)}
+        onStop={handleStop}
+        isSpeaking={isSpeaking}
+        onMapClick={(stall) => { setMapTarget(stall); setShowMap(true); }}
+      />
 
       {/* Header */}
       <AppHeader
@@ -215,50 +250,28 @@ function AppLayout() {
         setTtsProvider={() => { }}
         sttLanguage={language}
         setSttLanguage={setLanguage}
+        voiceMode={voiceMode}
+        setVoiceMode={(mode) => {
+          setVoiceMode(mode);
+          localStorage.setItem('techex_voicemode', mode);
+        }}
         onLogout={logout}
         onClearHistory={handleClearHistory}
       />
 
-      {/* Floating Chat */}
-      <ChatLayer
-        messages={messages}
-        loading={loading}
-        isFocused={isChatFocused}
-        onMapClick={(stall) => { setMapTarget(stall); setShowMap(true); }}
-        onClose={() => setIsChatFocused(false)}
-      />
-      <ChatLayer
-        messages={messages}
-        loading={loading}
-        isFocused={isChatFocused}
-        onMapClick={(stall) => { setMapTarget(stall); setShowMap(true); }}
-      />
-
-      {/* Bottom Control Bar */}
-      <BottomControlBar
-        input={input}
-        setInput={setInput}
-        onSend={() => handleSend(input)}
-        onStop={handleStop}
-        isSpeaking={isSpeaking}
-        loading={loading}
-        onToggleFocus={() => setIsChatFocused(!isChatFocused)}
-        isFocused={isChatFocused}
-      />
-      <BottomControlBar
-        input={input}
-        setInput={setInput}
-        onSend={() => handleSend(input)}
-        onStop={handleStop}
-        isSpeaking={isSpeaking}
-        loading={loading}
-        onToggleFocus={() => setIsChatFocused(!isChatFocused)}
-        isFocused={isChatFocused}
-        isListening={isListening && !isVoiceModeActive}
-        onMicClick={handleMicClick}
-        interimTranscript={interimTranscript}
-        isSTTSupported={true}
-      />
+      {/* Bottom Control Bar — hidden when chat modal is open */}
+      {!isChatFocused && (
+        <BottomControlBar
+          input={input}
+          setInput={setInput}
+          onSend={() => handleSend(input)}
+          onStop={handleStop}
+          isSpeaking={isSpeaking}
+          loading={loading}
+          onToggleFocus={() => setIsChatFocused(!isChatFocused)}
+          isFocused={isChatFocused}
+        />
+      )}
 
       {/* Map Modal */}
       <MapModal

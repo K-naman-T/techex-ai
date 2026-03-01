@@ -50,35 +50,36 @@ export const FloatingChat = ({ messages, loading, isFocused, onMapClick, onClose
   if (messages.length === 0 && !loading) return null;
 
   return (
-    <>
-      {/* Close Button */}
-      {isFocused && onClose && (
-        <button
-          onClick={onClose}
-          className="absolute top-20 right-4 z-50 p-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-white transition-all"
-        >
-          <X size={24} />
-        </button>
-      )}
+    <div className={`absolute inset-0 z-30 pointer-events-none flex flex-col justify-end px-4 md:px-0 transition-all duration-500 ${isFocused ? 'pb-36 pt-4' : 'pb-32 h-[60vh] top-auto'}`}>
+      <div className={`w-full max-w-3xl mx-auto overflow-y-auto custom-scrollbar pointer-events-auto pr-2 ${isFocused ? 'h-full' : 'h-full mask-gradient-top'}`}>
 
-      <div className={`absolute inset-0 z-30 pointer-events-none flex flex-col justify-end px-4 md:px-0 transition-all duration-500 ${isFocused ? 'pb-36 pt-24' : 'pb-32 h-[60vh] top-auto'}`}>
-        <div className={`w-full max-w-3xl mx-auto overflow-y-auto custom-scrollbar pointer-events-auto pr-2 ${isFocused ? 'h-full' : 'h-full mask-gradient-top'}`}>
-          {messages.filter(msg => msg.content && msg.content.trim() !== '').map((msg, idx) => (
-            <FloatingBubble key={idx} message={msg} onMapClick={onMapClick} />
-          ))}
+        {/* Sticky close bar inside scroll container */}
+        {isFocused && onClose && (
+          <div className="sticky top-0 z-50 flex justify-end py-2 pr-1">
+            <button
+              onClick={onClose}
+              className="p-2.5 bg-black/60 hover:bg-white/20 border border-white/20 rounded-full text-white backdrop-blur-md transition-all shadow-lg"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        )}
 
-          {loading && (
-            <div className="flex justify-start animate-in fade-in">
-              <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-3xl rounded-bl-sm p-4 flex gap-2 items-center">
-                <span className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"></span>
-                <span className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                <span className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
-              </div>
+        {messages.filter(msg => msg.content && msg.content.trim() !== '').map((msg, idx) => (
+          <FloatingBubble key={idx} message={msg} onMapClick={onMapClick} />
+        ))}
+
+        {loading && (
+          <div className="flex justify-start animate-in fade-in">
+            <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-3xl rounded-bl-sm p-4 flex gap-2 items-center">
+              <span className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"></span>
+              <span className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+              <span className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
             </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
       </div>
-    </>
+    </div>
   );
 };

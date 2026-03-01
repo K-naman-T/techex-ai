@@ -141,13 +141,10 @@ export const StyledOrbAvatar = ({ isSpeaking, isListening, isLoading, isActive, 
   const lastScale = useRef(1);
   const innerRef1 = useRef(null);
   const innerRef2 = useRef(null);
-
-  // Hold-vs-tap detection
-  const holdTimerRef = useRef(null);
-  const isHoldingRef = useRef(false);
+  // Robust tap tracking to circumvent WebKit animation hit-test bugs
   const pointerDownTimeRef = useRef(0);
+  const pointerDownPosRef = useRef(null);
 
-  const HOLD_THRESHOLD_MS = 200; // >200ms = hold, <200ms = tap
 
   const activeAnalyser = isListening ? micAnalyser : (isSpeaking ? analyser : null);
 
@@ -185,46 +182,25 @@ export const StyledOrbAvatar = ({ isSpeaking, isListening, isLoading, isActive, 
   }, [activeAnalyser, isActive]);
 
   const handlePointerDown = (e) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
+    // DO NOT preventDefault, allow native pan to evaluate, but trap capture
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { }
     pointerDownTimeRef.current = Date.now();
-    isHoldingRef.current = false;
-
-    if (isActive) {
-      // Start a timer: if held >HOLD_THRESHOLD_MS, trigger push-to-talk
-      holdTimerRef.current = setTimeout(() => {
-        isHoldingRef.current = true;
-        onInterruptStart?.();
-      }, HOLD_THRESHOLD_MS);
-    }
+    pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
   };
 
   const handlePointerUp = (e) => {
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { }
+    if (!pointerDownTimeRef.current) return;
 
-    // Clear hold timer if still pending
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
+    // Calculate if this was a quick tap (< 500ms) with minimal movement (< 15px)
+    const timeDelta = Date.now() - pointerDownTimeRef.current;
+    const distance = pointerDownPosRef.current
+      ? Math.hypot(e.clientX - pointerDownPosRef.current.x, e.clientY - pointerDownPosRef.current.y)
+      : 0;
 
-    if (isHoldingRef.current) {
-      // Was a hold → stop push-to-talk, do NOT toggle voice mode
-      isHoldingRef.current = false;
-      onInterruptStop?.();
-    } else {
-      // Was a short tap → toggle voice mode
+    pointerDownTimeRef.current = 0; // reset
+    if (timeDelta < 500 && distance < 15) {
       onClick?.();
-    }
-  };
-
-  const handlePointerCancel = (e) => {
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
-    if (isHoldingRef.current) {
-      isHoldingRef.current = false;
-      onInterruptStop?.();
     }
   };
 
@@ -232,12 +208,10 @@ export const StyledOrbAvatar = ({ isSpeaking, isListening, isLoading, isActive, 
     <StyledWrapper $isListening={isListening} $isSpeaking={isSpeaking} $isLoading={isLoading} $isActive={isActive}>
       <div
         className="orb-clickable-area"
-        style={{ touchAction: 'none' }}
-        onContextMenu={(e) => e.preventDefault()}
+        style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none', WebkitTapHighlightColor: 'transparent' }}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerCancel}
-        onPointerCancel={handlePointerCancel}
+        onContextMenu={(e) => e.preventDefault()}
       >
         <div className="orb-container">
           <div className="orb">
@@ -246,12 +220,14 @@ export const StyledOrbAvatar = ({ isSpeaking, isListening, isLoading, isActive, 
           </div>
         </div>
 
-        {/* Engagement prompt when idle */}
-        {!isActive && (
-          <div className="absolute -bottom-6 text-white/40 font-mono tracking-widest text-[10px] uppercase animate-pulse">
-            {isActive ? 'Hold to talk' : 'Tap to engage voice mode'}
-          </div>
-        )}
+        {/* Status label */}
+        <div className={`absolute -bottom-6 font-mono tracking-widest text-[10px] uppercase ${isListening ? 'text-green-400 animate-pulse' : 'text-white/40 animate-pulse'}`}>
+          {!isActive ? 'Tap to start voice' : (
+            isListening ? 'Tap when done' : (
+              isSpeaking || isLoading ? 'Tap to interrupt' : 'Tap to speak'
+            )
+          )}
+        </div>
       </div>
     </StyledWrapper>
   );

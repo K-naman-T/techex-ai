@@ -14,6 +14,18 @@ export class VoiceChatService {
      * Initializes a new Gemini Live session on a WebSocket request.
      * Includes contextWindowCompression, sessionResumption, GoAway handling, and retry logic.
      */
+    private projectsData: any[] = [];
+    private compactKB: string = "";
+
+    public setProjectsData(projects: any[]) {
+        this.projectsData = projects;
+        // Compact KB: stall number + title + category (~1K tokens for 44 stalls)
+        // This goes directly in the system instruction to avoid double-inference from tool calls
+        this.compactKB = projects.map((p: any) =>
+            `${p.stall_number}:${p.title}(${p.category || 'General'})`
+        ).join('|');
+    }
+
     public async initSession(
         ws: ServerWebSocket<WSContext>,
         config: {
@@ -47,10 +59,21 @@ export class VoiceChatService {
         const langInstruction =
             language === "hi"
                 ? "Speak strictly in Hindi. Your output must be localized for spoken Hindi."
-                : "Speak strictly in English.";
+                : language === "hinglish"
+                    ? "Speak strictly in Hinglish (Hindi written in English/Latin script). Example: 'Main aapki kaise madad kar sakti hoon?'"
+                    : "Speak strictly in English.";
 
-        // Minified system instruction for lower TTFB
-        const systemInstruction = `You are TechEx AI Assistant for ${config.getEventInfo()?.name || "TechEx"} at ${config.getEventInfo()?.location || "Event Venue"} on ${config.getEventInfo()?.date || "Today"}. ${userContext} Knowledge: ${config.getProjectsContext()} Rules: 1-2 short sentences max. Call show_map tool for stall locations. ${langInstruction}`;
+        // Compact inline KB in system instruction — avoids tool call double-inference latency
+        const systemInstruction = `You are a helpful and friendly FEMALE AI Assistant for ${config.getEventInfo()?.name || "TechEx"}. 
+You MUST act and speak like a woman (use feminine grammar in Hindi/Hinglish, e.g., 'karti hoon' instead of 'karta hoon').
+${userContext}
+Rules: Keep replies to 1-2 short spoken sentences. 
+You know ALL the stalls at the exhibition. Here they are (format: StallNumber:Title(Category)):
+${this.compactKB}
+Answer questions about stalls directly from this list. If a user asks about a topic, find matching stalls by title or category.
+Only use show_map tool when the user explicitly asks for directions or wants to see a stall on the map.
+For general conversation (greetings, thank you, how are you, etc.), just respond naturally — do NOT look up stalls.
+${langInstruction}`;
 
         // Store config for potential reconnection
         ctx.voiceInitConfig = { config, language, userMetadata, isFirstTime, systemInstruction };
@@ -87,19 +110,21 @@ export class VoiceChatService {
                     systemInstruction: {
                         parts: [{ text: systemInstruction }],
                     },
-                    // Natively support tool calling for navigating
+                    // Disable thinking for lower latency
+                    thinkingConfig: { thinkingBudget: 0 },
+                    // Only show_map tool — stall knowledge is inline in system instruction
                     tools: [
                         {
                             functionDeclarations: [
                                 {
                                     name: "show_map",
-                                    description: "Shows the user the indoor map of a specific stall or booth.",
+                                    description: "Shows the indoor map highlighting a specific stall. Only call when user asks for directions or wants to see a stall location.",
                                     parameters: {
                                         type: Type.OBJECT,
                                         properties: {
                                             stallId: {
                                                 type: Type.STRING,
-                                                description: "The ID or number of the stall (e.g., '101', 'A-22').",
+                                                description: "The stall number (e.g., 'A-01', 'B-12').",
                                             },
                                         },
                                         required: ["stallId"],
@@ -164,20 +189,15 @@ export class VoiceChatService {
                             }, 500);
                         }
 
-                        // Handle Map Function calls natively
+                        // Handle tool calls (only show_map now)
                         if (message.toolCall && message.toolCall.functionCalls) {
                             for (const call of message.toolCall.functionCalls) {
                                 if (call.name === "show_map") {
                                     const stallId = call.args?.stallId;
-                                    console.log(`[VoiceChatService] 🗺️ AI triggered map for stall: ${stallId}`);
+                                    console.log(`[VoiceChatService] 🗺️ Map for stall: ${stallId}`);
                                     ws.send(JSON.stringify({ type: "show_map", stallId }));
-
-                                    // Gemini expects a result block back
                                     session.sendToolResponse({
-                                        functionResponses: [{
-                                            id: call.id,
-                                            response: { result: `Map for stall ${stallId} shown to user.` }
-                                        }]
+                                        functionResponses: [{ name: call.name, id: call.id, response: { result: `Map shown.` } }]
                                     });
                                 }
                             }

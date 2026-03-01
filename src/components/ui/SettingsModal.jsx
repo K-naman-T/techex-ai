@@ -8,11 +8,14 @@ export const SettingsModal = ({
     setTtsProvider,
     sttLanguage,
     setSttLanguage,
+    voiceMode,
+    setVoiceMode,
     onSave
 }) => {
     // Local state for pending changes
     const [localProvider, setLocalProvider] = useState(ttsProvider);
     const [localLanguage, setLocalLanguage] = useState(sttLanguage);
+    const [localVoiceMode, setLocalVoiceMode] = useState(voiceMode || 'native');
     const [isSaving, setIsSaving] = useState(false);
     const [showSaved, setShowSaved] = useState(false);
 
@@ -21,11 +24,12 @@ export const SettingsModal = ({
         if (isOpen) {
             setLocalProvider(ttsProvider);
             setLocalLanguage(sttLanguage);
+            setLocalVoiceMode(voiceMode || 'native');
             setShowSaved(false);
         }
-    }, [isOpen, ttsProvider, sttLanguage]);
+    }, [isOpen, ttsProvider, sttLanguage, voiceMode]);
 
-    const hasChanges = localProvider !== ttsProvider || localLanguage !== sttLanguage;
+    const hasChanges = localProvider !== ttsProvider || localLanguage !== sttLanguage || localVoiceMode !== voiceMode;
 
     const handleSave = async () => {
         setIsSaving(true);
@@ -33,6 +37,7 @@ export const SettingsModal = ({
             // Update parent state
             setTtsProvider(localProvider);
             setSttLanguage(localLanguage);
+            if (setVoiceMode) setVoiceMode(localVoiceMode);
 
             // Call optional save callback (for backend sync)
             if (onSave) {
@@ -132,6 +137,36 @@ export const SettingsModal = ({
                             >
                                 <span className="font-semibold">Sarvam AI</span>
                                 <span className="text-xs opacity-60">Indian Accent</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Voice Mode (Latency vs Quality) */}
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-sm text-gray-400">
+                            <Volume2 size={16} />
+                            <span className="font-medium uppercase tracking-wider text-xs">Voice Flow Mode</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                onClick={() => setLocalVoiceMode('native')}
+                                className={`px-4 py-3 rounded-xl text-sm font-medium transition-all flex flex-col items-center text-center gap-1
+                                    ${localVoiceMode === 'native'
+                                        ? 'bg-cyan-500/20 text-cyan-400 border-2 border-cyan-500/50 shadow-lg shadow-cyan-500/10'
+                                        : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-white'}`}
+                            >
+                                <span className="font-semibold">Native Audio</span>
+                                <span className="text-xs opacity-60">Highest Quality (~5s)</span>
+                            </button>
+                            <button
+                                onClick={() => setLocalVoiceMode('pipeline')}
+                                className={`px-4 py-3 rounded-xl text-sm font-medium transition-all flex flex-col items-center text-center gap-1
+                                    ${localVoiceMode === 'pipeline'
+                                        ? 'bg-cyan-500/20 text-cyan-400 border-2 border-cyan-500/50 shadow-lg shadow-cyan-500/10'
+                                        : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-white'}`}
+                            >
+                                <span className="font-semibold">Fast Pipeline</span>
+                                <span className="text-xs opacity-60">Sub-second Latency</span>
                             </button>
                         </div>
                     </div>
