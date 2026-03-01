@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Navigation } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { X, Navigation, Hand } from 'lucide-react';
 
 const STALL_POSITIONS = {
     '3': { x: 80, y: 530, theme: 'purple' },
@@ -55,7 +55,7 @@ const THEME_COLORS = {
 };
 
 export const MapModal = ({ isOpen, onClose, targetStall }) => {
-    if (!isOpen) return null;
+    const mapContainerRef = useRef(null);
 
     const getPinPosition = (stall) => {
         if (!stall) return { x: 450, y: 325 };
@@ -79,6 +79,25 @@ export const MapModal = ({ isOpen, onClose, targetStall }) => {
 
     const USER_POS = { x: 450, y: 610 };
     const targetPos = getPinPosition(targetStall);
+
+    useEffect(() => {
+        if (isOpen && mapContainerRef.current) {
+            const container = mapContainerRef.current;
+            // Target coordinates centered inside the container dimensions
+            // Delay slightly to ensure map is rendered and layout complete
+            setTimeout(() => {
+                const ratioX = container.scrollWidth / 900;
+                const ratioY = container.scrollHeight / 650;
+
+                const scrollLeft = (targetPos.x * ratioX) - (container.clientWidth / 2);
+                const scrollTop = (targetPos.y * ratioY) - (container.clientHeight / 2);
+
+                container.scrollTo({ left: scrollLeft, top: scrollTop, behavior: 'smooth' });
+            }, 100);
+        }
+    }, [isOpen, targetPos.x, targetPos.y]);
+
+    if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/90 p-2 sm:p-4 animate-in fade-in duration-300">
@@ -192,9 +211,12 @@ export const MapModal = ({ isOpen, onClose, targetStall }) => {
                         </g>
 
                         {/* End Point (Target) */}
-                        <circle cx={targetPos.x} cy={targetPos.y} r="18" fill="#06b6d4" opacity="0.3" className="animate-ping" />
-                        <circle cx={targetPos.x} cy={targetPos.y} r="12" fill="#06b6d4" />
-                        <text x={targetPos.x} y={targetPos.y + 4} textAnchor="middle" fontFamily="Inter, system-ui, sans-serif" fontSize="10" fill="white" fontWeight="bold">{targetStall?.charAt(0) || '★'}</text>
+                        <g className="animate-bounce" style={{ transformOrigin: 'center center' }}>
+                            <circle cx={targetPos.x} cy={targetPos.y} r="22" fill="#06b6d4" opacity="0.25" className="animate-ping" />
+                            <path d={`M ${targetPos.x} ${targetPos.y + 4} A 16 16 0 1 0 ${targetPos.x} ${targetPos.y - 28} A 16 16 0 0 0 ${targetPos.x} ${targetPos.y + 4} Z`} fill="#0ea5e9" stroke="#fff" strokeWidth="2" strokeLinejoin="round" />
+                            <circle cx={targetPos.x} cy={targetPos.y - 12} r="6" fill="#fff" />
+                        </g>
+                        <text x={targetPos.x} y={targetPos.y - 35} textAnchor="middle" fontFamily="Inter, system-ui, sans-serif" fontSize="12" fill="#0ea5e9" fontWeight="900" className="drop-shadow-sm">{targetStall}</text>
 
                     </svg>
                 </div>
