@@ -142,6 +142,13 @@ export const StyledOrbAvatar = ({ isSpeaking, isListening, isLoading, isActive, 
   const innerRef1 = useRef(null);
   const innerRef2 = useRef(null);
 
+  // Hold-vs-tap detection
+  const holdTimerRef = useRef(null);
+  const isHoldingRef = useRef(false);
+  const pointerDownTimeRef = useRef(0);
+
+  const HOLD_THRESHOLD_MS = 200; // >200ms = hold, <200ms = tap
+
   const activeAnalyser = isListening ? micAnalyser : (isSpeaking ? analyser : null);
 
   useEffect(() => {
@@ -177,26 +184,60 @@ export const StyledOrbAvatar = ({ isSpeaking, isListening, isLoading, isActive, 
     return () => cancelAnimationFrame(requestRef.current);
   }, [activeAnalyser, isActive]);
 
+  const handlePointerDown = (e) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    pointerDownTimeRef.current = Date.now();
+    isHoldingRef.current = false;
+
+    if (isActive) {
+      // Start a timer: if held >HOLD_THRESHOLD_MS, trigger push-to-talk
+      holdTimerRef.current = setTimeout(() => {
+        isHoldingRef.current = true;
+        onInterruptStart?.();
+      }, HOLD_THRESHOLD_MS);
+    }
+  };
+
+  const handlePointerUp = (e) => {
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { }
+
+    // Clear hold timer if still pending
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+
+    if (isHoldingRef.current) {
+      // Was a hold → stop push-to-talk, do NOT toggle voice mode
+      isHoldingRef.current = false;
+      onInterruptStop?.();
+    } else {
+      // Was a short tap → toggle voice mode
+      onClick?.();
+    }
+  };
+
+  const handlePointerCancel = (e) => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    if (isHoldingRef.current) {
+      isHoldingRef.current = false;
+      onInterruptStop?.();
+    }
+  };
+
   return (
     <StyledWrapper $isListening={isListening} $isSpeaking={isSpeaking} $isLoading={isLoading} $isActive={isActive}>
       <div
         className="orb-clickable-area"
-        onClick={onClick}
-        onPointerDown={(e) => {
-          if (isActive) {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            onInterruptStart?.();
-          }
-        }}
-        onPointerUp={(e) => {
-          if (isActive) {
-            try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { }
-            onInterruptStop?.();
-          }
-        }}
-        onPointerLeave={(e) => {
-          if (isActive) onInterruptStop?.();
-        }}
+        style={{ touchAction: 'none' }}
+        onContextMenu={(e) => e.preventDefault()}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerCancel}
+        onPointerCancel={handlePointerCancel}
       >
         <div className="orb-container">
           <div className="orb">
@@ -208,7 +249,7 @@ export const StyledOrbAvatar = ({ isSpeaking, isListening, isLoading, isActive, 
         {/* Engagement prompt when idle */}
         {!isActive && (
           <div className="absolute -bottom-6 text-white/40 font-mono tracking-widest text-[10px] uppercase animate-pulse">
-            Click to engage voice mode
+            {isActive ? 'Hold to talk' : 'Tap to engage voice mode'}
           </div>
         )}
       </div>

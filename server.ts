@@ -40,6 +40,18 @@ const initKnowledgeBase = async () => {
 export type WSContext = {
   userId: string;
   geminiLiveSession?: any;
+  /** Last session resumption handle for reconnection */
+  sessionResumeHandle?: string;
+  /** Stored init config so GoAway/auto-reconnect can re-call connectWithRetry */
+  voiceInitConfig?: {
+    config: any;
+    language: string;
+    userMetadata: any;
+    isFirstTime: boolean;
+    systemInstruction: string;
+  };
+  /** Counter for auto-reconnect attempts */
+  reconnectAttempts?: number;
 };
 
 // --- Service Initialization ---

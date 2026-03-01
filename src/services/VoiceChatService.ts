@@ -3,11 +3,16 @@ import { GoogleGenAI, Modality, Type } from "@google/genai";
 import type { WSContext } from "../../server";
 import { ApiKeyManager } from "../lib/apiKeyManager";
 
+const MAX_CONNECT_RETRIES = 3;
+const RETRY_BASE_DELAY_MS = 1000;
+const MAX_RECONNECT_ATTEMPTS = 2;
+
 export class VoiceChatService {
     constructor(private apiKeyManager: ApiKeyManager) { }
 
     /**
      * Initializes a new Gemini Live session on a WebSocket request.
+     * Includes contextWindowCompression, sessionResumption, GoAway handling, and retry logic.
      */
     public async initSession(
         ws: ServerWebSocket<WSContext>,
@@ -61,12 +66,27 @@ ${config.getProjectsContext()}
 3. ${langInstruction}
 `;
 
+        // Store config for potential reconnection
+        ctx.voiceInitConfig = { config, language, userMetadata, isFirstTime, systemInstruction };
+
+        await this.connectWithRetry(ws, systemInstruction, ctx.sessionResumeHandle);
+    }
+
+    /**
+     * Connects to Gemini Live with retry logic (exponential backoff for 429 / transient errors).
+     */
+    private async connectWithRetry(
+        ws: ServerWebSocket<WSContext>,
+        systemInstruction: string,
+        resumeHandle?: string,
+        attempt: number = 0
+    ): Promise<void> {
+        const ctx = ws.data;
+
         try {
-            // Provide a round-robin key and create a localized client for this specific session
             const apiKey = this.apiKeyManager.getNextKey();
             const ai = new GoogleGenAI({ apiKey });
 
-            // Create pristine connection
             const session = await ai.live.connect({
                 model: "gemini-2.5-flash-native-audio-preview-12-2025",
                 config: {
@@ -108,15 +128,62 @@ ${config.getProjectsContext()}
                             disabled: true,
                         },
                     },
+
+                    // --- PRODUCTION HARDENING ---
+
+                    // Extend session beyond 15 min by compressing older context at 10K tokens
+                    contextWindowCompression: {
+                        slidingWindow: {},
+                        triggerTokens: "10000",
+                    },
+
+                    // Enable session resumption for seamless reconnection on GoAway/disconnect
+                    sessionResumption: resumeHandle
+                        ? { handle: resumeHandle }
+                        : {},
                 },
                 callbacks: {
                     onmessage: (message: any) => {
+                        // --- Session Resumption: capture latest handle ---
+                        if (message.sessionResumptionUpdate) {
+                            const update = message.sessionResumptionUpdate;
+                            if (update.newHandle && update.resumable) {
+                                ctx.sessionResumeHandle = update.newHandle;
+                            }
+                        }
+
+                        // --- GoAway: server will disconnect soon, auto-reconnect ---
+                        if (message.goAway) {
+                            console.warn(`[VoiceChatService] ⚠️ GoAway received! Time left: ${message.goAway.timeLeft}. Will auto-reconnect.`);
+                            ws.send(JSON.stringify({ type: "voice_reconnecting" }));
+
+                            // Schedule reconnect before the connection drops
+                            setTimeout(async () => {
+                                try {
+                                    if (ctx.geminiLiveSession === session) {
+                                        try { session.close(); } catch (e) { }
+                                        ctx.geminiLiveSession = undefined;
+                                    }
+                                    if (ctx.voiceInitConfig) {
+                                        await this.connectWithRetry(
+                                            ws,
+                                            ctx.voiceInitConfig.systemInstruction,
+                                            ctx.sessionResumeHandle
+                                        );
+                                    }
+                                } catch (e) {
+                                    console.error("[VoiceChatService] GoAway reconnect failed:", e);
+                                    ws.send(JSON.stringify({ type: "error", message: "Voice session reconnection failed" }));
+                                }
+                            }, 500);
+                        }
+
                         // Handle Map Function calls natively
                         if (message.toolCall && message.toolCall.functionCalls) {
                             for (const call of message.toolCall.functionCalls) {
                                 if (call.name === "show_map") {
                                     const stallId = call.args?.stallId;
-                                    console.log(`[VoiceChatService] \uD83D\uDDFA\uFE0F AI triggered map for stall: ${stallId}`);
+                                    console.log(`[VoiceChatService] 🗺️ AI triggered map for stall: ${stallId}`);
                                     ws.send(JSON.stringify({ type: "show_map", stallId }));
 
                                     // Gemini expects a result block back
@@ -159,9 +226,38 @@ ${config.getProjectsContext()}
                         if (ctx.geminiLiveSession === session) {
                             ctx.geminiLiveSession = undefined;
                         }
+                        // Auto-reconnect on unexpected disconnect (1011 = expected API timeout)
+                        if (ctx.voiceInitConfig && ctx.sessionResumeHandle) {
+                            const closeCode = event?.code || event;
+                            if (closeCode === 1011 || closeCode === 1001) {
+                                console.log(`[VoiceChatService] 🔄 Auto-reconnecting after close code ${closeCode}...`);
+                                ctx.reconnectAttempts = (ctx.reconnectAttempts || 0) + 1;
+                                if (ctx.reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
+                                    ws.send(JSON.stringify({ type: "voice_reconnecting" }));
+                                    setTimeout(async () => {
+                                        try {
+                                            await this.connectWithRetry(
+                                                ws,
+                                                ctx.voiceInitConfig!.systemInstruction,
+                                                ctx.sessionResumeHandle
+                                            );
+                                        } catch (e) {
+                                            console.error("[VoiceChatService] Auto-reconnect failed:", e);
+                                            ws.send(JSON.stringify({ type: "error", message: "Voice reconnection failed" }));
+                                        }
+                                    }, 1000);
+                                } else {
+                                    console.warn("[VoiceChatService] Max reconnect attempts reached.");
+                                    ws.send(JSON.stringify({ type: "error", message: "Voice session expired. Please restart." }));
+                                }
+                            }
+                        }
                     },
                 }
             });
+
+            // Connection successful — reset reconnect counter
+            ctx.reconnectAttempts = 0;
 
             // Bind to Context
             ctx.geminiLiveSession = session;
@@ -173,8 +269,18 @@ ${config.getProjectsContext()}
             // The session is now open and waiting for microphone audio input from the client.
 
         } catch (e: any) {
+            const isRetryable = e?.status === 429 || e?.status === 503 || e?.message?.includes("429") || e?.message?.includes("503");
+
+            if (isRetryable && attempt < MAX_CONNECT_RETRIES - 1) {
+                const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 500;
+                console.warn(`[VoiceChatService] ⚡ Retryable error (attempt ${attempt + 1}/${MAX_CONNECT_RETRIES}), retrying in ${Math.round(delay)}ms...`, e.message || e);
+                await new Promise(r => setTimeout(r, delay));
+                // Rotate to next key before retrying
+                return this.connectWithRetry(ws, systemInstruction, resumeHandle, attempt + 1);
+            }
+
             console.error("[VoiceChatService] Failed to establish Live API connection:", e);
-            ws.send(JSON.stringify({ type: "error", message: "Failed to connect to AI Voice" }));
+            ws.send(JSON.stringify({ type: "error", message: "Failed to connect to AI Voice. Service may be busy — please try again." }));
         }
     }
 }

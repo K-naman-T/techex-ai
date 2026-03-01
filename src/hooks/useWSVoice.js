@@ -216,6 +216,22 @@ export const useWSVoice = ({ onShowMap } = {}) => {
             if (onShowMap) onShowMap(msg.stallId);
             break;
 
+          // Session reconnecting (GoAway / auto-reconnect)
+          case 'voice_reconnecting':
+            console.log('[WS] Voice session reconnecting...');
+            setIsListening(false);
+            setIsSpeaking(false);
+            // Keep mic stream alive — server will re-establish Gemini session
+            break;
+
+          case 'gemini_live_started':
+            console.log('[WS] Gemini Live session (re)started.');
+            // Resume listening state after reconnection
+            if (isVoiceModeActiveRef.current) {
+              setIsListening(true);
+            }
+            break;
+
           case 'error':
             console.error("[WS] Server Error:", msg.message);
             break;

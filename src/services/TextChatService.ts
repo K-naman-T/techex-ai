@@ -57,50 +57,79 @@ ${langInstruction}
 
         const systemInstruction = this.getSystemInstruction(userName, interests, language);
 
+        // Capture apiKeyManager for retry inside ReadableStream
+        const apiKeyMgr = this.apiKeyManager;
+
         const stream = new ReadableStream({
             async start(controller) {
-                try {
-                    const resultStream = await ai.models.generateContentStream({
-                        model: "gemini-2.5-flash",
-                        contents: recentHistory,
-                        config: {
-                            systemInstruction: systemInstruction,
-                        }
-                    });
+                const MAX_RETRIES = 3;
+                const BASE_DELAY_MS = 1000;
+                let currentAi = ai;
 
-                    let fullText = "";
-                    for await (const chunk of resultStream) {
-                        const delta = chunk.text;
-                        if (delta) {
-                            const cleanDelta = delta.replace(/[\*\#]/g, ''); // Strip markdown
-                            fullText += cleanDelta;
+                for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+                    try {
+                        const resultStream = await currentAi.models.generateContentStream({
+                            model: "gemini-2.5-flash",
+                            contents: recentHistory,
+                            config: {
+                                systemInstruction: systemInstruction,
+                            }
+                        });
 
-                            // Send delta to client
-                            const displayDelta = cleanDelta.replace(/\[SHOW_MAP:\s*(.*?)\]/g, "");
-                            if (displayDelta) {
-                                controller.enqueue(`data: ${JSON.stringify({ type: "chat_delta", text: displayDelta })}\n\n`);
+                        let fullText = "";
+                        for await (const chunk of resultStream) {
+                            const delta = chunk.text;
+                            if (delta) {
+                                const cleanDelta = delta.replace(/[\*\#]/g, ''); // Strip markdown
+                                fullText += cleanDelta;
+
+                                // Send delta to client
+                                const displayDelta = cleanDelta.replace(/\[SHOW_MAP:\s*(.*?)\]/g, "");
+                                if (displayDelta) {
+                                    controller.enqueue(`data: ${JSON.stringify({ type: "chat_delta", text: displayDelta })}\n\n`);
+                                }
                             }
                         }
-                    }
 
-                    // Handle Map Tags at the end
-                    const mapRegex = /\[SHOW_MAP:\s*(.*?)\]/g;
-                    let match;
-                    while ((match = mapRegex.exec(fullText)) !== null) {
-                        if (match[1]) {
-                            controller.enqueue(`data: ${JSON.stringify({ type: "show_map", stallId: match[1].trim() })}\n\n`);
+                        // Handle Map Tags at the end
+                        const mapRegex = /\[SHOW_MAP:\s*(.*?)\]/g;
+                        let match;
+                        while ((match = mapRegex.exec(fullText)) !== null) {
+                            if (match[1]) {
+                                controller.enqueue(`data: ${JSON.stringify({ type: "show_map", stallId: match[1].trim() })}\n\n`);
+                            }
                         }
+
+                        const cleanFullText = fullText.replace(/\[SHOW_MAP:\s*(.*?)\]/g, "");
+                        console.log(`[TextChatService] 🤖 Gemini: "${cleanFullText.substring(0, 200)}..."`);
+
+                        // Success — exit retry loop
+                        controller.close();
+                        return;
+
+                    } catch (error: any) {
+                        const isRetryable = error?.status === 429 || error?.status === 503 ||
+                            error?.message?.includes("429") || error?.message?.includes("503");
+
+                        if (isRetryable && attempt < MAX_RETRIES - 1) {
+                            const delay = BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 500;
+                            console.warn(`[TextChatService] ⚡ Retry ${attempt + 1}/${MAX_RETRIES} in ${Math.round(delay)}ms...`, error.message || error);
+                            await new Promise(r => setTimeout(r, delay));
+                            // Rotate to next key
+                            const nextKey = apiKeyMgr.getNextKey();
+                            currentAi = new GoogleGenAI({ apiKey: nextKey });
+                            continue;
+                        }
+
+                        console.error("[TextChatService] Internal Error:", error);
+                        controller.enqueue(`data: ${JSON.stringify({ type: "error", message: "Service busy — please try again in a moment." })}\n\n`);
+                        controller.close();
+                        return;
                     }
-
-                    const cleanFullText = fullText.replace(/\[SHOW_MAP:\s*(.*?)\]/g, "");
-                    console.log(`[TextChatService] 🤖 Gemini: "${cleanFullText.substring(0, 200)}..."`);
-
-                } catch (error: any) {
-                    console.error("[TextChatService] Internal Error:", error);
-                    controller.enqueue(`data: ${JSON.stringify({ type: "error", message: "Error generating response" })}\n\n`);
-                } finally {
-                    controller.close();
                 }
+
+                // Should not reach here, but close cleanly
+                controller.close();
             }
         });
 
