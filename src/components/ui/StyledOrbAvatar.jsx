@@ -61,6 +61,9 @@ const StyledWrapper = styled.div`
     border-radius: 50%;
     background: #060606;
     filter: blur(24px);
+    box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.03);
+
+
     
     /* Dynamic speed based on state */
     animation: ${rotate} linear infinite;
@@ -84,7 +87,7 @@ const StyledWrapper = styled.div`
     
     /* Active vs Inactive Colors */
     background: ${props => {
-    if (!props.$isActive) return 'radial-gradient(ellipse at 30% 40%, rgba(245,245,245,0.6), rgba(200,200,210,0.3) 50%, rgba(100,100,120,0.15) 100%)'; // White smoke dormant
+    if (!props.$isActive) return 'radial-gradient(ellipse at 30% 40%, rgba(255,255,255,0.7), rgba(200,200,210,0.4) 50%, rgba(100,100,120,0.15) 100%)';
     return props.$isListening ? '#06b6d4' : '#ff3e1c';
   }};
     transition: background 1.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -103,7 +106,7 @@ const StyledWrapper = styled.div`
     return '30s';
   }};
     
-    opacity: ${props => props.$isActive ? '0.8' : '0.55'};
+    opacity: ${props => props.$isActive ? '0.8' : '0.6'};
     will-change: transform;
     --audio-scale: 1;
   }
@@ -115,7 +118,7 @@ const StyledWrapper = styled.div`
     bottom: -25%;
     
     background: ${props => {
-    if (!props.$isActive) return '#555555'; // Inactive lighter Gray
+    if (!props.$isActive) return '#475569'; // Slate 600
     return props.$isListening ? '#3b82f6' : '#1c8cff';
   }};
     
@@ -211,7 +214,9 @@ export const StyledOrbAvatar = ({ isSpeaking, isListening, isLoading, isActive, 
         style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none', WebkitTapHighlightColor: 'transparent' }}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
+        onClick={(e) => e.stopPropagation()}
         onContextMenu={(e) => e.preventDefault()}
+
       >
         <div className="orb-container">
           <div className="orb">
@@ -220,8 +225,10 @@ export const StyledOrbAvatar = ({ isSpeaking, isListening, isLoading, isActive, 
           </div>
         </div>
 
-        {/* Status label */}
-        <div className={`absolute -bottom-6 font-mono tracking-widest text-[10px] uppercase ${isListening ? 'text-green-400 animate-pulse' : 'text-white/40 animate-pulse'}`}>
+        {/* Status label - Optimized for Slate background */}
+        <div className={`absolute -bottom-6 font-mono tracking-widest text-[10px] uppercase ${isListening ? 'text-indigo-600 animate-pulse' : 'text-slate-600/60 animate-pulse'}`}>
+
+
           {!isActive ? 'Tap to start voice' : (
             isListening ? 'Tap when done' : (
               isSpeaking || isLoading ? 'Tap to interrupt' : 'Tap to speak'

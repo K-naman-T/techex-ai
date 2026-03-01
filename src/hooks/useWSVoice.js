@@ -220,22 +220,26 @@ export const useWSVoice = ({ onShowMap, voiceMode = 'native' } = {}) => {
             break;
 
           // === Gemini Live messages ===
-          case 'gemini_live_ready':
-            console.log(`[VoiceAPI (${voiceModeRef.current})] Session ready. Auto-starting listening phase.`);
-            // Automatically fire activity_start out of the gate so user doesn't have to tap again
+          case 'gemini_live_ready': // Fallback for any legacy signals
+          case 'gemini_live_started':
+            console.log(`[VoiceAPI (${voiceModeRef.current})] Session started & ready. Auto-firing activity_start.`);
             setIsListening(true);
-            try { ws.send(JSON.stringify({ type: "activity_start" })); } catch (e) { }
+            try {
+              ws.send(JSON.stringify({ type: "activity_start" }));
+            } catch (e) {
+              console.error("[WS] Failed to send initial activity_start:", e);
+            }
             break;
+
           case 'gemini_live_interrupted':
             console.log("[GeminiLive] Response interrupted by user.");
             stopSpeaking();
-            // manual tap starts the next listening phase
             break;
+
           case 'gemini_live_turn_complete':
             console.log("[GeminiLive] Turn complete.");
             setIsSpeaking(false);
             isSpeakingRef.current = false;
-            // manual tap starts the next listening phase
             break;
 
           case 'show_map':
@@ -251,13 +255,7 @@ export const useWSVoice = ({ onShowMap, voiceMode = 'native' } = {}) => {
             // Keep mic stream alive — server will re-establish Gemini session
             break;
 
-          case 'gemini_live_started':
-            console.log(`[VoiceAPI (${voiceModeRef.current})] session (re)started.`);
-            // Resume listening state after reconnection
-            if (isVoiceModeActiveRef.current) {
-              setIsListening(true);
-            }
-            break;
+          // case 'gemini_live_started' handled above in unified case
 
           case 'error':
             console.error("[WS] Server Error:", msg.message);

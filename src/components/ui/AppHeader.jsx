@@ -31,17 +31,19 @@ export const AppHeader = ({
                 {/* Clear History Button */}
                 <button
                     onClick={onClearHistory}
-                    className="h-10 w-10 rounded-full border border-white/10 bg-black/20 text-gray-400 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center backdrop-blur-md transition-all"
+                    className="h-10 w-10 rounded-full border border-white/10 bg-slate-900/20 text-slate-700 hover:text-red-600 hover:bg-red-500/10 flex items-center justify-center backdrop-blur-md transition-all"
                     title="Clear History"
                 >
+
                     <Trash2 size={18} />
                 </button>
 
                 {/* Settings Button */}
                 <button
                     onClick={() => setShowSettings(!showSettings)}
-                    className={`h-10 w-10 rounded-full border flex items-center justify-center backdrop-blur-md transition-all ${showSettings ? 'bg-white/10 border-white/30 text-white' : 'bg-black/20 border-white/10 text-gray-400 hover:text-white hover:bg-white/5'}`}
+                    className={`h-10 w-10 rounded-full border flex items-center justify-center backdrop-blur-md transition-all ${showSettings ? 'bg-white/40 border-white/60 text-indigo-600' : 'bg-slate-900/20 border-white/10 text-slate-700 hover:text-indigo-600 hover:bg-white/20'}`}
                 >
+
                     <Settings size={20} />
                 </button>
 
@@ -61,10 +63,11 @@ export const AppHeader = ({
                 <button
                     onClick={onLogout}
                     title="Sign Out"
-                    className="h-10 w-10 rounded-full border flex items-center justify-center backdrop-blur-md transition-all bg-black/20 border-white/10 text-gray-400 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/30"
+                    className="h-10 w-10 rounded-full border flex items-center justify-center backdrop-blur-md transition-all bg-slate-900/20 border-white/10 text-slate-700 hover:text-red-600 hover:bg-red-500/10 hover:border-red-500/30"
                 >
                     <LogOut size={18} />
                 </button>
+
             </div>
         </div>
     );

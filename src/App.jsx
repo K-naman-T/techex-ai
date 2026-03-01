@@ -202,15 +202,25 @@ function AppLayout() {
 
   // === Render ===
   return (
-    <div className="relative h-[100dvh] w-full bg-[#050505] overflow-hidden font-sans selection:bg-cyan-500/30">
+    <div
+      className="relative h-[100dvh] w-full bg-animated-dark overflow-hidden font-sans selection:bg-cyan-500/30"
+      onClick={() => {
+        if (isVoiceModeActive) {
+          console.log("[App] Background clicked, closing voice session...");
+          const lang = mapLanguage(language);
+          toggleGeminiLiveMode(lang, user, false);
+        }
+      }}
+    >
       <Loader />
 
       {/* Voice toast */}
       {voiceToast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-5 py-3 bg-green-500/20 border border-green-500/40 backdrop-blur-md rounded-full text-green-300 text-sm font-mono tracking-wide animate-in slide-in-from-top-4 fade-in duration-300 shadow-lg">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-5 py-3 bg-white/40 border border-green-200/60 backdrop-blur-xl rounded-full text-green-700 text-sm font-semibold tracking-wide animate-in slide-in-from-top-4 fade-in duration-300 shadow-sm">
           {voiceToast}
         </div>
       )}
+
 
       {/* 3D Avatar Scene Replacement - Styled Orb */}
       <StyledOrbAvatar

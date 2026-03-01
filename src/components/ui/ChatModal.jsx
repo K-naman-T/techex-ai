@@ -65,7 +65,7 @@ const ChatInputBar = ({ input, setInput, onSend, loading, isSpeaking, onStop }) 
         <div className="p-3 sm:p-4 border-t border-white/5">
             <div className="relative group max-w-3xl mx-auto">
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 rounded-full opacity-30 group-hover:opacity-60 blur transition duration-500"></div>
-                <div className="relative flex items-center bg-black/90 backdrop-blur-xl rounded-full border border-white/10 p-1.5 sm:p-2 shadow-2xl">
+                <div className="relative flex items-center bg-slate-900/50 backdrop-blur-2xl rounded-full border border-white/10 p-1.5 sm:p-2 shadow-2xl">
                     <input
                         type="text"
                         value={input}
@@ -135,9 +135,10 @@ export const ChatModal = ({
         <div className="fixed inset-0 z-[80] flex flex-col">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/85 backdrop-blur-2xl transition-opacity duration-300"
+                className="absolute inset-0 bg-slate-900/40 backdrop-blur-xl transition-opacity duration-300"
                 onClick={onClose}
             />
+
 
             {/* Modal container */}
             <div className="relative z-10 flex flex-col h-full max-w-3xl w-full mx-auto">

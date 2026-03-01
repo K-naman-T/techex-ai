@@ -23,9 +23,9 @@ export const BottomControlBar = ({
     <div className="absolute bottom-10 sm:bottom-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-2 sm:px-4 flex flex-col gap-2 sm:gap-4 pointer-events-auto z-[60] border border-red-500/0">
       {/* Main Control Capsule */}
       <div className="relative group">
-        <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 rounded-full opacity-30 group-hover:opacity-60 blur transition duration-500"></div>
+        <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500/40 via-blue-500/40 to-purple-600/40 rounded-full opacity-30 group-hover:opacity-60 blur-md transition duration-500"></div>
+        <div className="relative flex items-center bg-slate-900/40 backdrop-blur-2xl rounded-full border border-white/10 p-1.5 sm:p-2 shadow-[0_8px_32px_rgba(0,0,0,0.15)]">
 
-        <div className="relative flex items-center bg-black/90 backdrop-blur-xl rounded-full border border-white/10 p-1.5 sm:p-2 shadow-2xl">
 
           {/* Left Controls (Focus Only) */}
           <div className="flex items-center pr-1 sm:pr-2 border-r border-white/10 mr-1 sm:mr-2 gap-0.5 sm:gap-1">
