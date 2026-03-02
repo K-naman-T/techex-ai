@@ -60,32 +60,22 @@ export class VoiceChatService {
         // Dynamic greeting — only on FIRST connection
         const greeting = isFirstTime
             ? userMetadata?.name
-                ? `This is your FIRST interaction. Greet them warmly: "Hello ${userMetadata.name}! Welcome to TechEx 2026. How can I help you today?"`
-                : `This is your FIRST interaction. Greet them warmly: "Hello! Welcome to TechEx 2026. How can I help you today?"`
-            : "Do NOT greet. Respond directly to the user's input.";
+                ? `This is your FIRST interaction. Greet them in English: "Hello ${userMetadata.name}! Welcome to TechEx 2026. How can I help you today?"`
+                : `This is your FIRST interaction. Greet them in English: "Hello! Welcome to TechEx 2026. How can I help you today?"`
+            : "Do NOT greet. Listen to what language the user speaks and mirror it exactly.";
 
-        const langInstruction = `**[LANGUAGE & VOICE - CRITICAL RULES]**
-1. **LANGUAGE: Mirror the user's language.**
-   - If user speaks pure English → respond in pure English
-   - If user speaks pure Hindi → respond in Hindi (you can naturally use common English words like ticket, stall, book, hall, project, etc.)
-   - If user mixes Hindi + English words (Hinglish) → respond in Hinglish
-   - Match whatever language mix the user uses — do NOT change it
-   - NEVER respond in Hindi for pure English queries
+        const langInstruction = `**[LANGUAGE RULE — #1 PRIORITY]**
+Mirror the user's language exactly.
+- User speaks English → respond in English.
+- User speaks Hindi → respond in Hindi. You may naturally use common English words (ticket, stall, hall, project, book, etc.).
+- User mixes English and Hindi → match their mix.
+Always follow the user's lead.
 
-2. **EXAMPLES - FOLLOW EXACTLY:**
-   - User: "Where is stall A-01?" → Response: English ONLY
-   - User: "What time does it open?" → Response: English ONLY
-   - User: "Tell me about the event" → Response: English ONLY
-   - User: "Ticket kaise book karna hai?" → Response: Hinglish OK
-   - User: "Ye stall kahan hai?" → Response: Hindi OK (can say "stall", "A-01", etc.)
-
-3. **VOICE & ACCENT - CRITICAL:**
-   - ALWAYS speak with a strong Indian English accent, even when speaking pure English
-   - Pronounce English words the way an educated Indian professional would — NOT with an American accent
-   - Think of how a senior Indian IT professional or a news anchor from NDTV speaks English
-   - No American twang, no rising inflections, no Western pronunciation
-   - This applies to ALL responses — English, Hindi, and Hinglish
-   - Tone: Friendly but professional for a business event`;
+**[VOICE & ACCENT — CRITICAL]**
+- ALWAYS speak with a strong Indian English accent — like an NDTV news anchor or senior Indian IT professional.
+- NO American accent, no Western twang, no rising inflections.
+- This applies to ALL responses in every language.
+- Tone: Friendly, professional, suited for a business exhibition.`;
 
         // Full inline KB in system instruction — language directive FIRST for maximum compliance
         const systemInstruction = `${langInstruction}
@@ -106,7 +96,7 @@ Answer questions about stalls from the projects data. Answer questions about Tec
 Only use show_map tool when the user explicitly asks for directions or wants to see a stall on the map.
 For general conversation (greetings, thank you, how are you, etc.), just respond naturally — do NOT look up stalls.
 
-REMINDER: Be helpful, accurate, and concise.`;
+REMINDER: Be helpful, accurate, and concise. Always mirror the user's language — listen first, then match.`;
 
         // Store config for potential reconnection
         ctx.voiceInitConfig = { config, userMetadata, isFirstTime, systemInstruction };
