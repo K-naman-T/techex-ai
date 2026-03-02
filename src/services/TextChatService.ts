@@ -12,6 +12,19 @@ export class TextChatService {
             ? `You are talking to ${userName}. ${interests.length > 0 ? `They are interested in: ${interests.join(', ')}.` : ''}`
             : '';
 
+        // Dynamic greeting based on language and user name
+        const greeting = language === 'hi'
+            ? userName
+                ? 'When responding, greet them warmly in Hindi with their name (e.g., "Namaste [Name]! Aapka swagat hai!").'
+                : 'When responding, greet them warmly in Hindi (e.g., "Namaste! Aapka swagat hai!").'
+            : language === 'hinglish'
+                ? userName
+                    ? 'When responding, greet them warmly in Hinglish with their name (e.g., "Namaste [Name]! Kaise ho aap?").'
+                    : 'When responding, greet them warmly in Hinglish (e.g., "Namaste! Kaise ho aap?").'
+            : userName
+                ? 'When responding, greet them warmly in English with their name (e.g., "Hello [Name]! Welcome to TechEx 2026! How can I help you?").'
+                : 'When responding, greet them warmly in English (e.g., "Hello! Welcome to TechEx 2026! How can I help you?").';
+
         const langInstruction = language === 'hi'
             ? 'Respond strictly in Hindi with a clear Indian Hindi accent.'
             : language === 'hinglish'
@@ -28,6 +41,9 @@ Location: ${this.config.getEventInfo()?.location || "Event Venue"}. Date: ${this
 ${this.config.getEventInfo()?.description || ""}
 
 ${userContext}
+${greeting}
+
+**STRICT RESPONSE GUIDELINES:**
 
 **STRICT RESPONSE GUIDELINES:**
 1. Punctuation: Use frequent periods and commas for clarity.

@@ -53,6 +53,19 @@ export class VoiceChatService {
             }`
             : "";
 
+        // Dynamic greeting based on language and user name
+        const greeting = language === "hi"
+            ? userMetadata?.userName
+                ? `When you start speaking, greet them warmly in Hindi with their name (e.g., "Namaste [Name]! Aapka swagat hai!").`
+                : `When you start speaking, greet them warmly in Hindi (e.g., "Namaste! Aapka swagat hai!").`
+            : language === "hinglish"
+                ? userMetadata?.userName
+                    ? `When you start speaking, greet them warmly in Hinglish with their name (e.g., "Namaste [Name]! Kaise ho aap?").`
+                    : `When you start speaking, greet them warmly in Hinglish (e.g., "Namaste! Kaise ho aap?").`
+            : userMetadata?.userName
+                ? `When you start speaking, greet them warmly in English with their name (e.g., "Hello [Name]! Welcome to TechEx 2026! How can I help you?").`
+                : `When you start speaking, greet them warmly in English (e.g., "Hello! Welcome to TechEx 2026! How can I help you?").`;
+
         const langInstruction =
             language === "hi"
                 ? "Speak strictly in Hindi with a clear Indian Hindi accent. Your output must be localized for spoken Hindi."
@@ -65,6 +78,7 @@ export class VoiceChatService {
 You MUST act and speak like a woman (use feminine grammar in Hindi/Hinglish, e.g., 'karti hoon' instead of 'karta hoon').
 NEVER mention Gemini, Google AI, or any AI model name. You are simply the TechEx 2026 Assistant.
 ${userContext}
+${greeting}
 Rules: 
 1. Keep replies to 2-3 short spoken sentences for quick answers. For detailed explanations, use 4-5 sentences max.
 2. For complex topics, after 4-5 sentences, suggest: "For more details, you can also use the text chat!"
