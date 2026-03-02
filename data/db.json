@@ -6,7 +6,62 @@
       "description": "TECH EX 2026 is a technical exhibition organized by Tata Steel, driving innovation through five key themes that shape the future: Productivity, Sustainability, Cost, Safety, and Reliability. This event builds on 15 years of pioneering progress since 2008, fostering a culture of innovation and problem-solving among cadre trainees. The key themes guiding Tech Ex include: Commitment to Value Creation, Inspiring Generation, Owning a Digital Metamorphosis, Technovation at Work, Future Ready - Connected, Agile, Sustainable, Greennovation - Make Tomorrow Green, Technology for People and Planet, and One Vision One Tata Steel. It represents a holistic developmental journey for cadre trainees, from innovation to leadership, covering technical understanding, practical application, new technologies exposure, problem solving, design thinking, teamwork, communication, and innovation.",
       "organizer": "Tata Steel",
       "location": "Not explicitly stated, implied to be a Tata Steel facility.",
-      "layout_info": "The exhibition layout is designed with a central VIP LOUNGE and LED SCREEN. The main pathway, labeled 'ENTRY', leads into the exhibition area. Stalls are arranged in numerical order, with some grouped into 'AC SETUP' zones. On the left side, stalls 4, 5, 6, 7, 8, 9, 10, 11, 12 are arranged vertically, with 'WATER' and 'AIR' zones indicated. Stalls 32, 33, 34, 35 are located near the VIP LOUNGE. On the right side, stalls 17, 18, 19, 20, 21, 22, 23, 24 are arranged vertically, with 'EXIT' points. Stalls 28, 29, 30, 31 are also near the VIP LOUNGE. Stalls 1, 2, 3 are located near the 'ENTRY' point, and stalls 25, 26, 27 are near the right-side 'AC SETUP' zone. A '3D HOLOG' area is indicated near the center, pointing 'NORTH'. An 'EMERGENCY ASSEMBLY POINT' runs along the far right side of the layout."
+      "layout_info": "The exhibition layout is designed with a central VIP LOUNGE and LED SCREEN. The main pathway, labeled 'ENTRY', leads into the exhibition area. Stalls are arranged in numerical order, with some grouped into 'AC SETUP' zones. On the left side, stalls 4, 5, 6, 7, 8, 9, 10, 11, 12 are arranged vertically, with 'WATER' and 'AIR' zones indicated. Stalls 32, 33, 34, 35 are located near the VIP LOUNGE. On the right side, stalls 17, 18, 19, 20, 21, 22, 23, 24 are arranged vertically, with 'EXIT' points. Stalls 28, 29, 30, 31 are also near the VIP LOUNGE. Stalls 1, 2, 3 are located near the 'ENTRY' point, and stalls 25, 26, 27 are near the right-side 'AC SETUP' zone. A '3D HOLOG' area is indicated near the center, pointing 'NORTH'. An 'EMERGENCY ASSEMBLY POINT' runs along the far right side of the layout.",
+      "founding_vision": "\"Unflinching faith in the resources of the country and it's people is what I consider to be the first essential of success\" - J. N. Tata. This founding vision by Jamsetji Nusserwanji Tata is the guiding principle behind Tata Steel and the TECH EX program. The Tata Steel tagline is #WeAlsoMakeTomorrow, reinforcing the company's identity and forward-looking vision.",
+      "program_history": "TECH EX has 15 YEARS OF PIONEERING PROGRESS. Since 2008, it has driven a culture of innovation and problem solving among cadre trainees. The program has evolved through editions from TECH EX 2008 to TECH EX 2024, with TECH EX 2026 being the latest edition. The program's overarching motto is 'TECHNOLOGY FOR PEOPLE & PLANET', emphasizing technological advancement for societal and environmental benefit.",
+      "key_themes": [
+        "COMMITMENT TO VALUE CREATION",
+        "INSPIRING GENERATION",
+        "OWNING A DIGITAL METAMORPHOSIS",
+        "TECHNOVATION AT WORK",
+        "FUTURE READY - CONNECTED. AGILE. SUSTAINABLE",
+        "GREENNOVATION - MAKE TOMORROW GREEN",
+        "TECHNOLOGY FOR PEOPLE AND PLANET",
+        "ONE VISION ONE TATA STEEL"
+      ],
+      "trainee_development_journey": "TECH EX represents A HOLISTIC DEVELOPMENTAL JOURNEY FOR CADRE TRAINEES — 'From innovation to leadership and beyond'. The journey encompasses nine interconnected components: 1) Technical Understanding, 2) Practical Application, 3) New Technologies Exposure, 4) Problem Solving, 5) Design Thinking, 6) Teamwork, 7) Leadership, 8) Communication, 9) Innovation. These elements contribute to a well-rounded development path, with trainees engaged in presenting projects and interacting with equipment, highlighting the practical and collaborative nature of their training.",
+      "process_framework": "The PROCESS FRAMEWORK FOR TECH EX PROJECTS consists of five distinct stages: 1) Business Problem Identification — focusing on identifying critical business challenges; 2) Research and Analysis — in-depth investigation and data analysis related to the identified problems; 3) Leadership Guidance and Project Prioritization — receiving direction from leadership and prioritizing projects based on strategic importance; 4) Prototype Development — creating initial models or versions of solutions; 5) Periodic Reviews — continuous monitoring and evaluation of project progress and outcomes.",
+      "past_project_highlights": {
+        "safety": [
+          {"name": "Real-time monitoring of blow stock layers condition / Real-time Tuyere Monitoring", "department": "HCRTSJ", "year": "TECH EX 2023"},
+          {"name": "Real-time DSL health monitoring system / Safe, Real-time DSL Monitoring", "department": "LD 1, TSL", "year": "TECH EX 2023"},
+          {"name": "Enhancing safety in desealing in excavator / Safer, 15 min Faster Desealing", "department": "OMQ", "year": "TECH EX 2023"},
+          {"name": "Image analytics based boulder detection at Noamundi Iron Ore processing plant / AI Boulder Detection", "department": "OMQ", "year": "TECH EX 2023"},
+          {"name": "Auto-Bagging System for Ferro Alloys / Automated, Safer Bagging", "department": "JODA FAMO", "year": "TECH EX 2020"},
+          {"name": "Nano hot metal desulphurisation station / Requires 1/3 space & takes 60% less time", "department": "LD2-TSJ", "year": "TECH EX 2023"},
+          {"name": "Feature Enhanced Synthetic Slings / Safer, Faster Handling", "department": "CRMT", "year": "TECH EX 2020"},
+          {"name": "Redefining concept at shop floor of CRM SEB / Smart helmet, Hands-free Communication", "department": "West Bokaro", "year": "TECH EX 2023"}
+        ],
+        "sustainability": [
+          {"name": "Dry GCP in TSK / <10 mg/Nm³ GAS (Dry) ECO-FRIENDLY", "department": "SMS TSK", "year": "TECH EX 2024"}
+        ],
+        "reliability": [
+          {"name": "A Unique Approach for Removal of Fit Bolts / MTTR 24h to 8h", "department": "TSJ, TSM", "year": "TECH EX 2020"},
+          {"name": "Mechanized Arrangement for External Siliconisation of Hot Metal / 50 h Furnace Life, 10kWh/tHM Save", "department": "Tata Metaliks Ltd", "year": "TECH EX 2020"},
+          {"name": "Reliability of vibrofeeder / Consistent Material Flow", "department": "Raw Material Plant, TSJ", "year": "TECH EX 2023"}
+        ],
+        "cost": [
+          {"name": "Automation of Dry Lime coating on Nut Coke / 30 Lakh Save, Automated", "department": "GBR TSJ", "year": "TECH EX 2024"},
+          {"name": "Affordable water purification / LOW COST & ECO-FRIENDLY", "department": "Not specified", "year": "TECH EX 2012", "patented": "2018"},
+          {"name": "Pneumatic Centre Stand with Battery Air Compressor / LIGHT WEIGHT & COMPACT DESIGN", "department": "Not specified", "year": "TECH EX 2018", "patented": "2024"}
+        ]
+      },
+      "leadership_endorsements": [
+        {"name": "Noel Tata", "title": "Chairman of Tata Trusts", "quote": "A wonderful display of great talent. Congratulations to all the participants."},
+        {"name": "Ruchi Narendran", "title": "Not specified", "quote": "Hope you exceed all expectations. Lot to learn. Keep it up. Wish you all the best."},
+        {"name": "Uttam Singh", "title": "VP - Iron Making, TSL", "quote": "Happy to see the importance given to Safety, Sustainability and Digitalization. All the best."},
+        {"name": "Dr. Sundara Ramam", "title": "VP - Engineering & Projects, TSL", "quote": "The very best to the young engineers. I want to see them develop into great leaders. All the best team."},
+        {"name": "Prabhat Kumar", "title": "VP - Raw Materials, TSL", "quote": "Very good display of projects. Keep up the good work."},
+        {"name": "Jayanta Banerjee", "title": "Chief - Safety, TSL", "quote": "Congratulations to all the participants for the excellent projects. Keep up the good work."}
+      ],
+      "trainee_testimonials": [
+        {"name": "Jyotsana Kumari Gupta", "batch": "MTT 2023 Batch", "quote": "Participating in TECH EX 2024 early in my career strengthened my teamwork, coordination, and technical clarity. Preparing a live model taught financial discipline, deadline ownership, and broadened exposure."},
+        {"name": "Aditya Prakash Ojha", "batch": "TA 2023 Batch", "quote": "As a core member of TECH EX 2024, I saw how technology delivers real value when purpose-driven. The event highlighted the Industry's shift toward smarter, sustainable steelmaking for progress."},
+        {"name": "Souvik Sengupta", "batch": "MTT 2023 Batch", "quote": "Participating in TECH EX 2024 was a prestigious experience. Presenting my project to the CEO & MD strengthened my confidence, teamwork, and coordination while deepening understanding of real-time plant challenges."},
+        {"name": "Deepshikha Brahma", "batch": "MTT 2024 Batch", "quote": "TECH EX 2024 strengthened my ownership, collaboration, and leadership skills. Working on automation solutions showed how aligned teams transform ideas into impactful outcomes, inspiring me to pursue broader opportunities driven by innovation and purpose."},
+        {"name": "Gopal Prasad Singh", "batch": "JET 2023 Batch", "quote": "TECH EX 2024 offered valuable insights into how innovation and cross-functional collaboration solve key challenges. Reviewer interactions reinforced clarity, feedback, and improvement while strengthening my technical understanding significantly."},
+        {"name": "Shreya", "batch": "JET 2023 Batch", "quote": "TECH EX 2024 remains a defining experience, strengthening teamwork and creativity. As an alumna, I value the learning it provides, empowering young minds to innovate, collaborate, and excel further."}
+      ]
     }
   ],
   "projects": [

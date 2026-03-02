@@ -225,10 +225,8 @@ export const StyledOrbAvatar = ({ isSpeaking, isListening, isLoading, isActive, 
           </div>
         </div>
 
-        {/* Status label - Optimized for Slate background */}
-        <div className={`absolute -bottom-6 font-mono tracking-widest text-[10px] uppercase ${isListening ? 'text-indigo-600 animate-pulse' : 'text-slate-600/60 animate-pulse'}`}>
-
-
+        {/* Status label */}
+        <div className={`absolute -bottom-8 font-semibold tracking-wide text-sm ${isListening ? 'text-indigo-400 animate-pulse' : 'text-slate-400/80 animate-pulse'}`}>
           {!isActive ? 'Tap to start voice' : (
             isListening ? 'Tap when done' : (
               isSpeaking || isLoading ? 'Tap to interrupt' : 'Tap to speak'

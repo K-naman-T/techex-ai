@@ -47,7 +47,6 @@ export const useWSVoice = ({ onShowMap, voiceMode = 'native' } = {}) => {
   const micStreamRef = useRef(null);
   const micProcessorRef = useRef(null);
   const activeBackendRef = useRef('gemini_live');
-  const lastLanguageRef = useRef('hi-IN');
   const workletLoadedRef = useRef(false);
 
   const voiceModeRef = useRef(voiceMode);
@@ -341,7 +340,7 @@ export const useWSVoice = ({ onShowMap, voiceMode = 'native' } = {}) => {
 
   // ============= GEMINI LIVE MODE =============
 
-  const toggleGeminiLiveMode = useCallback(async (language = 'hi', userMetadata = null, isFirstTime = false) => {
+  const toggleGeminiLiveMode = useCallback(async (userMetadata = null, isFirstTime = false) => {
     const newState = !isVoiceModeActive;
     setIsVoiceModeActive(newState);
     isVoiceModeActiveRef.current = newState;
@@ -369,7 +368,6 @@ export const useWSVoice = ({ onShowMap, voiceMode = 'native' } = {}) => {
           : null;
         ws.send(JSON.stringify({
           type: 'start_gemini_live',
-          language: language,
           userMetadata: safeMetadata,
           isFirstTime: isFirstTime,
           mode: voiceModeRef.current
@@ -395,14 +393,14 @@ export const useWSVoice = ({ onShowMap, voiceMode = 'native' } = {}) => {
 
   // ============= CHAT (Text) =============
 
-  const sendChat = useCallback(async (text, conversation_id, history = [], language = 'en', userMetadata = {}) => {
+  const sendChat = useCallback(async (text, conversation_id, history = [], userMetadata = {}) => {
     setChatResponse('');
 
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, history, language, userMetadata })
+        body: JSON.stringify({ message: text, history, userMetadata })
       });
 
       if (!response.ok) {

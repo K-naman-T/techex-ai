@@ -15,12 +15,17 @@ export class VoiceChatService {
      * Includes contextWindowCompression, sessionResumption, GoAway handling, and retry logic.
      */
     private projectsData: any[] = [];
+    private eventData: any = {};
     private compactKB: string = "";
 
     public setProjectsData(projects: any[]) {
         this.projectsData = projects;
-        // Full knowledge base as JSON for comprehensive context in system instruction
-        this.compactKB = JSON.stringify(projects, null, 0);
+    }
+
+    public setEventData(event: any) {
+        this.eventData = event;
+        // Full knowledge base: event info (branding, themes, endorsements) + all projects
+        this.compactKB = JSON.stringify({ event, projects: this.projectsData }, null, 0);
     }
 
     public async initSession(
@@ -29,7 +34,6 @@ export class VoiceChatService {
             getProjectsContext: () => string;
             getEventInfo: () => any;
         },
-        language: string = "hi",
         userMetadata: any = {},
         isFirstTime: boolean = false
     ) {
@@ -53,61 +57,59 @@ export class VoiceChatService {
             }`
             : "";
 
-        // Dynamic greeting — only on FIRST connection, not every message
+        // Dynamic greeting — only on FIRST connection
         const greeting = isFirstTime
-            ? language === "hi"
-                ? userMetadata?.name
-                    ? `This is your FIRST interaction with this user. Greet them warmly in Hindi with their name (e.g., "Namaste ${userMetadata.name}! TechEx 2026 mein aapka swagat hai!"). After this first greeting, NEVER greet again — just answer their questions directly.`
-                    : `This is your FIRST interaction with this user. Greet them warmly in Hindi (e.g., "Namaste! TechEx 2026 mein aapka swagat hai!"). After this first greeting, NEVER greet again — just answer their questions directly.`
-                : language === "hinglish"
-                    ? userMetadata?.name
-                        ? `This is your FIRST interaction with this user. Greet them warmly in Hinglish with their name (e.g., "Namaste ${userMetadata.name}! Kaise ho aap?"). After this first greeting, NEVER greet again — just answer their questions directly.`
-                        : `This is your FIRST interaction with this user. Greet them warmly in Hinglish (e.g., "Namaste! Kaise ho aap?"). After this first greeting, NEVER greet again — just answer their questions directly.`
-                    : userMetadata?.name
-                        ? `This is your FIRST interaction with this user. Greet them warmly in English with their name (e.g., "Hello ${userMetadata.name}! Welcome to TechEx 2026!"). After this first greeting, NEVER greet again — just answer their questions directly.`
-                        : `This is your FIRST interaction with this user. Greet them warmly in English (e.g., "Hello! Welcome to TechEx 2026!"). After this first greeting, NEVER greet again — just answer their questions directly.`
-            : "Do NOT greet the user. They have already been greeted. Respond directly to their question without any greeting or welcome message.";
+            ? userMetadata?.name
+                ? `This is your FIRST interaction. Greet them warmly: "Hello ${userMetadata.name}! Welcome to TechEx 2026. How can I help you today?"`
+                : `This is your FIRST interaction. Greet them warmly: "Hello! Welcome to TechEx 2026. How can I help you today?"`
+            : "Do NOT greet. Respond directly to the user's input.";
 
-        const langInstruction =
-            language === "hi"
-                ? `**[LANGUAGE: HINDI — MANDATORY]**
-You MUST speak ONLY in Hindi (Devanagari-based spoken Hindi). Do NOT use English at all — not even for technical terms if a Hindi equivalent exists. If you must use an English technical term (like "AI", "stall", "robotics"), wrap it naturally in Hindi sentences.
-Example: "Yeh stall number 5 hai, yahan pe AI-based quality inspection ka project hai."
-Every single response MUST be in Hindi. This is non-negotiable.`
-                : language === "hinglish"
-                    ? `**[LANGUAGE: HINGLISH — MANDATORY]**
-You MUST speak ONLY in Hinglish (Hindi words written in English/Latin script, mixed naturally with English). Do NOT respond in pure English or pure Hindi (Devanagari). Use a natural mix that an urban Indian would use.
-Examples:
-- "Main aapki kaise help kar sakti hoon?"
-- "Yeh project bahut interesting hai, isme machine learning use hota hai quality check ke liye."
-- "Aap stall number 12 pe jaayein, wahan robotics ka demo hai."
-Every single response MUST be in Hinglish. This is non-negotiable.`
-                    : `**[LANGUAGE: ENGLISH — MANDATORY]**
-You MUST speak ONLY in English with an Indian English accent and intonation. Use natural Indian English expressions.
-Every single response MUST be in English. This is non-negotiable.`;
+        const langInstruction = `**[LANGUAGE & VOICE - CRITICAL RULES]**
+1. **LANGUAGE: Mirror the user's language.**
+   - If user speaks pure English → respond in pure English
+   - If user speaks pure Hindi → respond in Hindi (you can naturally use common English words like ticket, stall, book, hall, project, etc.)
+   - If user mixes Hindi + English words (Hinglish) → respond in Hinglish
+   - Match whatever language mix the user uses — do NOT change it
+   - NEVER respond in Hindi for pure English queries
+
+2. **EXAMPLES - FOLLOW EXACTLY:**
+   - User: "Where is stall A-01?" → Response: English ONLY
+   - User: "What time does it open?" → Response: English ONLY
+   - User: "Tell me about the event" → Response: English ONLY
+   - User: "Ticket kaise book karna hai?" → Response: Hinglish OK
+   - User: "Ye stall kahan hai?" → Response: Hindi OK (can say "stall", "A-01", etc.)
+
+3. **VOICE & ACCENT - CRITICAL:**
+   - ALWAYS speak with a strong Indian English accent, even when speaking pure English
+   - Pronounce English words the way an educated Indian professional would — NOT with an American accent
+   - Think of how a senior Indian IT professional or a news anchor from NDTV speaks English
+   - No American twang, no rising inflections, no Western pronunciation
+   - This applies to ALL responses — English, Hindi, and Hinglish
+   - Tone: Friendly but professional for a business event`;
 
         // Full inline KB in system instruction — language directive FIRST for maximum compliance
-        const langReminder = language === "hi" ? "Respond ONLY in Hindi." : language === "hinglish" ? "Respond ONLY in Hinglish." : "Respond ONLY in English.";
         const systemInstruction = `${langInstruction}
 
 You are the AI Assistant for ${config.getEventInfo()?.name || "TechEx 2026"}.
-You MUST act and speak like a woman (use feminine grammar in Hindi/Hinglish, e.g., 'karti hoon' instead of 'karta hoon').
+You are a female assistant. Speak with a natural, professional tone.
+Your output towards the user should be gender neutral.
 NEVER mention Gemini, Google AI, or any AI model name. You are simply the TechEx 2026 Assistant.
 ${userContext}
 ${greeting}
 Rules:
 1. Keep replies to 2-3 short spoken sentences for quick answers. For detailed explanations, use 4-5 sentences max.
 2. For complex topics, after 4-5 sentences, suggest: "For more details, you can also use the text chat!"
-3. You know ALL the stalls at the exhibition. Here is the complete knowledge base with full details:
+3. You know ALL about the exhibition AND all the stalls. Here is the complete knowledge base with full details:
 ${this.compactKB}
-Answer questions about stalls directly from this knowledge base. If a user asks about a topic, find matching stalls by title, category, or description.
+The knowledge base contains: event information (founding vision, 15-year history, key themes, trainee development journey, process framework, past project highlights, leadership endorsements, trainee testimonials) AND all 35 stall/project details.
+Answer questions about stalls from the projects data. Answer questions about TechEx history, vision, themes, process framework, leadership quotes, or trainee experiences from the event data.
 Only use show_map tool when the user explicitly asks for directions or wants to see a stall on the map.
 For general conversation (greetings, thank you, how are you, etc.), just respond naturally — do NOT look up stalls.
 
-REMINDER: ${langReminder}`;
+REMINDER: Be helpful, accurate, and concise.`;
 
         // Store config for potential reconnection
-        ctx.voiceInitConfig = { config, language, userMetadata, isFirstTime, systemInstruction };
+        ctx.voiceInitConfig = { config, userMetadata, isFirstTime, systemInstruction };
 
         await this.connectWithRetry(ws, systemInstruction, ctx.sessionResumeHandle);
     }
@@ -134,7 +136,7 @@ REMINDER: ${langReminder}`;
                     speechConfig: {
                         voiceConfig: {
                             prebuiltVoiceConfig: {
-                                voiceName: "Aoede",
+                                voiceName: "Despina",
                             },
                         },
                     },

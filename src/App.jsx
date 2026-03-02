@@ -39,7 +39,6 @@ function AppLayout() {
   const [isChatFocused, setIsChatFocused] = useState(false);
 
   // UI State
-  const [showSettings, setShowSettings] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [mapTarget, setMapTarget] = useState(null);
@@ -70,15 +69,6 @@ function AppLayout() {
   });
 
 
-  const [language, setLanguage] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('techex_user'))?.language || 'hi-IN'; } catch { return 'hi-IN'; }
-  });
-
-  const mapLanguage = (lang) => {
-    if (lang === 'hi-Hinglish') return 'hinglish';
-    if (lang?.startsWith('hi')) return 'hi';
-    return 'en';
-  };
 
   // Microphone Analyser for Visualizer
   const micAnalyser = useMicAnalyser(isListening);
@@ -88,18 +78,6 @@ function AppLayout() {
     localStorage.setItem('techex_history', JSON.stringify(messages));
   }, [messages]);
 
-  // Sync language to localStorage whenever it changes (covers Settings changes too)
-  useEffect(() => {
-    try {
-      const userData = JSON.parse(localStorage.getItem('techex_user') || '{}');
-      if (userData.language !== language) {
-        userData.language = language;
-        localStorage.setItem('techex_user', JSON.stringify(userData));
-      }
-    } catch (e) {
-      console.warn('[App] Failed to sync language to localStorage:', e);
-    }
-  }, [language]);
 
 
 
@@ -131,14 +109,12 @@ function AppLayout() {
     }
   }, [chatResponse, isVoiceModeActive]);
 
-  // Auto-disconnect voice when chat focuses
   useEffect(() => {
     if (isChatFocused && isVoiceModeActive) {
       console.log("[App] Chat focused, auto-disconnecting voice...");
-      const lang = mapLanguage(language);
-      toggleGeminiLiveMode(lang, user, false);
+      toggleGeminiLiveMode(user, false);
     }
-  }, [isChatFocused, isVoiceModeActive, toggleGeminiLiveMode, language, user]);
+  }, [isChatFocused, isVoiceModeActive, toggleGeminiLiveMode, user]);
 
   // Removed auto-activation of voice mode. The user will manually initiate the pipeline via Tap and Hold.
   // Voice connected toast
@@ -161,8 +137,7 @@ function AppLayout() {
     if (!isVoiceModeActive) {
       // 1. Inactive -> Connect and enter listening mode automatically
       console.log(`[App] Orb Clicked. Activating voice mode.`);
-      const lang = mapLanguage(language);
-      toggleGeminiLiveMode(lang, activeUser, false);
+      toggleGeminiLiveMode(activeUser, false);
     } else if (isListening) {
       // 2. Listening -> User taps to say they are finished speaking
       console.log(`[App] Orb Clicked. Finishing turn (Tap-to-Talk).`);
@@ -187,9 +162,7 @@ function AppLayout() {
     setIsChatFocused(true); // Auto-open chat modal on text send
 
     try {
-      const chatLanguage = mapLanguage(language);
-      // Pass user metadata for personalization
-      await sendChat(text, null, messages, chatLanguage, {
+      await sendChat(text, null, messages, {
         userName: user?.name,
         interests: user?.interests
       });
@@ -219,8 +192,7 @@ function AppLayout() {
       onClick={() => {
         if (isVoiceModeActive) {
           console.log("[App] Background clicked, closing voice session...");
-          const lang = mapLanguage(language);
-          toggleGeminiLiveMode(lang, user, false);
+          toggleGeminiLiveMode(user, false);
         }
       }}
     >
@@ -265,12 +237,6 @@ function AppLayout() {
 
       {/* Header */}
       <AppHeader
-        showSettings={showSettings}
-        setShowSettings={setShowSettings}
-        ttsProvider="auto"
-        setTtsProvider={() => { }}
-        sttLanguage={language}
-        setSttLanguage={setLanguage}
         showGuide={showGuide}
         setShowGuide={setShowGuide}
       />

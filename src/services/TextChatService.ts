@@ -7,41 +7,44 @@ export class TextChatService {
     /**
      * Generates the system instruction dynamically based on the user context and event info.
      */
-    private getSystemInstruction(userName?: string, interests: string[] = [], language: string = 'en') {
+    private getSystemInstruction(userName?: string, interests: string[] = []) {
         const userContext = userName
             ? `You are talking to ${userName}. ${interests.length > 0 ? `They are interested in: ${interests.join(', ')}.` : ''}`
             : '';
 
         // Dynamic greeting — only on first message (no prior history), not every turn
-        const greeting = language === 'hi'
-            ? userName
-                ? `On your VERY FIRST reply only (when there is no prior conversation history), greet them warmly in Hindi with their name (e.g., "Namaste ${userName}! TechEx 2026 mein aapka swagat hai!"). For ALL subsequent messages, respond directly WITHOUT any greeting.`
-                : `On your VERY FIRST reply only (when there is no prior conversation history), greet them warmly in Hindi (e.g., "Namaste! TechEx 2026 mein aapka swagat hai!"). For ALL subsequent messages, respond directly WITHOUT any greeting.`
-            : language === 'hinglish'
-                ? userName
-                    ? `On your VERY FIRST reply only (when there is no prior conversation history), greet them warmly in Hinglish with their name (e.g., "Namaste ${userName}! Kaise ho aap?"). For ALL subsequent messages, respond directly WITHOUT any greeting.`
-                    : `On your VERY FIRST reply only (when there is no prior conversation history), greet them warmly in Hinglish (e.g., "Namaste! Kaise ho aap?"). For ALL subsequent messages, respond directly WITHOUT any greeting.`
-                : userName
-                    ? `On your VERY FIRST reply only (when there is no prior conversation history), greet them warmly in English with their name (e.g., "Hello ${userName}! Welcome to TechEx 2026!"). For ALL subsequent messages, respond directly WITHOUT any greeting.`
-                    : `On your VERY FIRST reply only (when there is no prior conversation history), greet them warmly in English (e.g., "Hello! Welcome to TechEx 2026!"). For ALL subsequent messages, respond directly WITHOUT any greeting.`;
+        // Dynamic greeting — only on first message (no prior history), not every turn
+        const greeting = userName
+            ? `On your VERY FIRST reply only (when there is no prior conversation history), greet them warmly with their name (e.g., "Namaste ${userName}! TechEx 2026 mein aapka swagat hai!" or "Hello ${userName}! Welcome to TechEx 2026!"). Match the greeting language to whatever the user wrote. For ALL subsequent messages, respond directly WITHOUT any greeting.`
+            : `On your VERY FIRST reply only (when there is no prior conversation history), greet them warmly (e.g., "Namaste! TechEx 2026 mein aapka swagat hai!" or "Hello! Welcome to TechEx 2026!"). Match the greeting language to whatever the user wrote. For ALL subsequent messages, respond directly WITHOUT any greeting.`;
+        const langInstruction = `**[LANGUAGE BEHAVIOR — ADAPTIVE]**
+Automatically detect the language the user is writing in.
+Respond in the EXACT SAME language and style as the user:
+- If the user writes in English, respond in English.
+- If the user writes in Hindi, respond in Hindi.
+- If the user code-mixes Hindi and English (Hinglish), mirror their code-mixing style naturally.
+- Match the user's formality level and language register.
+- Never ask which language to use — just adapt naturally.
 
-        const langInstruction = language === 'hi'
-            ? `**[LANGUAGE: HINDI \u2014 MANDATORY]**\nYou MUST respond ONLY in Hindi. Do NOT use English at all. If you must use an English technical term (like \"AI\", \"stall\", \"robotics\"), wrap it naturally in Hindi sentences.\nEvery single response MUST be in Hindi. This is non-negotiable.`
-            : language === 'hinglish'
-                ? `**[LANGUAGE: HINGLISH \u2014 MANDATORY]**\nYou MUST respond ONLY in Hinglish (Hindi words written in English/Latin script, mixed naturally with English). Do NOT respond in pure English or pure Hindi (Devanagari). Use a natural mix that an urban Indian would use.\nExamples:\n- \"Main aapki kaise help kar sakti hoon?\"\n- \"Yeh project bahut interesting hai, isme machine learning use hota hai quality check ke liye.\"\nEvery single response MUST be in Hinglish. This is non-negotiable.`
-                : `**[LANGUAGE: ENGLISH \u2014 MANDATORY]**\nYou MUST respond ONLY in English. Use natural Indian English expressions.\nEvery single response MUST be in English. This is non-negotiable.`;
-
-        const langReminder = language === 'hi' ? 'Respond ONLY in Hindi.' : language === 'hinglish' ? 'Respond ONLY in Hinglish.' : 'Respond ONLY in English.';
+Examples of language mirroring:
+User: "Exhibition kab khulega?" → You: "Exhibition subah 10 baje se shaam 6 baje tak khula rahega!"
+User: "What are the entry timings?" → You: "The exhibition runs from 10 AM to 6 PM daily."
+User: "Bro, koi interesting stalls hain kya?" → You: "Haan, bahut saare interesting stalls hain! AI-based projects se lekar robotics tak sab kuch hai."
+User: "Tell me about stall A-01" → You: "Stall A-01 features an AI-powered quality inspection system for steel manufacturing."`;
 
         return `${langInstruction}
 
-**Knowledge Base:**
-${this.config.getProjectsContext()}
+**Complete Knowledge Base (Event + Projects):**
+${JSON.stringify({ event: this.config.getEventInfo(), projects: JSON.parse(this.config.getProjectsContext() || '[]') }, null, 0)}
+
+The knowledge base contains: event information (founding vision, 15-year history, key themes, trainee development journey, process framework, past project highlights, leadership endorsements, trainee testimonials) AND all 35 stall/project details.
+Answer questions about stalls from the projects data. Answer questions about TechEx history, vision, themes, process framework, leadership quotes, or trainee experiences from the event data.
 
 You are the AI Assistant for **${this.config.getEventInfo()?.name || "TechEx 2026"}**.
+You MUST act and speak like a woman (use feminine grammar in Hindi/Hinglish, e.g., 'karti hoon' instead of 'karta hoon').
+Your output towards the user should be gender neutral — do not assume the user's gender.
 NEVER mention Gemini, Google AI, or any AI model name. You are simply the TechEx 2026 Assistant.
 Location: ${this.config.getEventInfo()?.location || "Event Venue"}. Date: ${this.config.getEventInfo()?.date || "Today"}.
-${this.config.getEventInfo()?.description || ""}
 
 ${userContext}
 ${greeting}
@@ -52,7 +55,7 @@ ${greeting}
 3. Navigation: If asked for location, append [SHOW_MAP: <StallNumber>].
 4. NO MARKDOWN: Respond in plain text only. Do not use bold, italics, or hashtags.
 
-REMINDER: ${langReminder}
+REMINDER: Mirror the user's language naturally. Never force a language they didn't use.
 `;
     }
 
@@ -61,7 +64,7 @@ REMINDER: ${langReminder}
      */
     public async handleStream(req: Request): Promise<Response> {
         const body: any = await req.json();
-        const { message, history, language = 'en', userMetadata = {} } = body;
+        const { message, history, userMetadata = {} } = body;
         const { userName, interests = [] } = userMetadata;
 
         console.log(`[TextChatService] Incoming request${userName ? ` from ${userName}` : ''}`);
@@ -76,7 +79,7 @@ REMINDER: ${langReminder}
 
         recentHistory.push({ role: 'user', parts: [{ text: message }] });
 
-        const systemInstruction = this.getSystemInstruction(userName, interests, language);
+        const systemInstruction = this.getSystemInstruction(userName, interests);
 
         // Capture apiKeyManager for retry inside ReadableStream
         const apiKeyMgr = this.apiKeyManager;

@@ -1,14 +1,7 @@
-import { Settings, Info } from 'lucide-react';
-import { SettingsModal } from './SettingsModal';
+import { Info } from 'lucide-react';
 import { InfoGuideModal } from './InfoGuideModal';
 
 export const AppHeader = ({
-    showSettings,
-    setShowSettings,
-    ttsProvider,
-    setTtsProvider,
-    sttLanguage,
-    setSttLanguage,
     showGuide,
     setShowGuide,
 }) => {
@@ -36,24 +29,6 @@ export const AppHeader = ({
                     <Info size={20} />
                 </button>
 
-                {/* Settings Button */}
-                <button
-                    onClick={() => setShowSettings(!showSettings)}
-                    className={`h-10 w-10 rounded-full border flex items-center justify-center backdrop-blur-md transition-all ${showSettings ? 'bg-white/40 border-white/60 text-indigo-600' : 'bg-slate-900/20 border-white/10 text-slate-700 hover:text-indigo-600 hover:bg-white/20'}`}
-                >
-
-                    <Settings size={20} />
-                </button>
-
-                {/* Settings Modal */}
-                <SettingsModal
-                    isOpen={showSettings}
-                    onClose={() => setShowSettings(false)}
-                    ttsProvider={ttsProvider}
-                    setTtsProvider={setTtsProvider}
-                    sttLanguage={sttLanguage}
-                    setSttLanguage={setSttLanguage}
-                />
 
                 {/* Info Guide Modal */}
                 <InfoGuideModal

@@ -34,6 +34,7 @@ const initKnowledgeBase = async () => {
 
     console.log(`[INIT] Knowledge base loaded. ${projects.length} projects cached.`);
     voiceChatService.setProjectsData(projectsArray);
+    voiceChatService.setEventData(eventInfo);
   } catch (error) {
     console.error("[INIT] Failed to load knowledge base:", error);
   }
@@ -47,7 +48,6 @@ export type WSContext = {
   /** Stored init config so GoAway/auto-reconnect can re-call connectWithRetry */
   voiceInitConfig?: {
     config: any;
-    language: string;
     userMetadata: any;
     isFirstTime: boolean;
     systemInstruction: string;
@@ -134,7 +134,6 @@ const server = serve<WSContext>({
             await voiceChatService.initSession(
               ws,
               { getProjectsContext: () => projectsContext, getEventInfo: () => eventInfo },
-              msg.language,
               msg.userMetadata,
               msg.isFirstTime
             );
