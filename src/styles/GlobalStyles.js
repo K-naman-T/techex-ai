@@ -14,8 +14,8 @@ export const GlobalStyles = createGlobalStyle`
 
   body {
     font-family: var(--font-sans);
-    background-color: #0f0f11;
-    color: #ffffff;
+    background-color: #cbd5e1;
+    color: #0f172a;
     overflow: hidden; /* Prevent scroll on 3D view */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

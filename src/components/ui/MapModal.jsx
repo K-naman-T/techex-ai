@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
-import { X, Navigation, Hand } from 'lucide-react';
+import React, { useEffect, useRef, useMemo } from 'react';
+import { X, Navigation, MapPin } from 'lucide-react';
+import dbData from '../../../data/db.json';
 
 const STALL_POSITIONS = {
     '3': { x: 80, y: 530, theme: 'purple' },
@@ -54,8 +55,32 @@ const THEME_COLORS = {
     empty: '#f1f5f9'
 };
 
+const CATEGORY_LABELS = {
+    purple: 'Productivity',
+    green: 'Sustainability',
+    gold: 'Cost',
+    red: 'Safety',
+    teal: 'Reliability'
+};
+
 export const MapModal = ({ isOpen, onClose, targetStall }) => {
     const mapContainerRef = useRef(null);
+
+    // Build stall lookup from db.json — maps "1", "2", ... to project info
+    const stallInfo = useMemo(() => {
+        const map = {};
+        if (dbData?.projects) {
+            dbData.projects.forEach(p => {
+                const num = String(parseInt(p.stall_number, 10));
+                map[num] = {
+                    title: p.title,
+                    team: p.team_name,
+                    category: p.category
+                };
+            });
+        }
+        return map;
+    }, []);
 
     const getPinPosition = (stall) => {
         if (!stall) return { x: 450, y: 325 };
@@ -77,14 +102,26 @@ export const MapModal = ({ isOpen, onClose, targetStall }) => {
         }
     };
 
-    const USER_POS = { x: 450, y: 610 };
     const targetPos = getPinPosition(targetStall);
+
+    // Get details for the targeted stall
+    const targetDetails = useMemo(() => {
+        if (!targetStall) return null;
+        const cleanStall = targetStall.replace(/^[A-Z]-/, '');
+        const num = String(parseInt(cleanStall, 10));
+        return stallInfo[num] || null;
+    }, [targetStall, stallInfo]);
+
+    // Get the theme color for the target stall
+    const targetTheme = useMemo(() => {
+        if (!targetStall) return null;
+        const cleanStall = targetStall.replace(/^[A-Z]-/, '');
+        return STALL_POSITIONS[cleanStall]?.theme || null;
+    }, [targetStall]);
 
     useEffect(() => {
         if (isOpen && mapContainerRef.current) {
             const container = mapContainerRef.current;
-            // Target coordinates centered inside the container dimensions
-            // Delay slightly to ensure map is rendered and layout complete
             setTimeout(() => {
                 const ratioX = container.scrollWidth / 900;
                 const ratioY = container.scrollHeight / 650;
@@ -102,12 +139,12 @@ export const MapModal = ({ isOpen, onClose, targetStall }) => {
     return (
         <div className="fixed inset-0 z-[100] flex flex-col bg-white animate-in zoom-in-95 duration-200 sm:p-4 sm:bg-zinc-950/90 items-center justify-center">
 
-            {/* Modal Container for Desktop (acts like full screen on mobile due to w-full h-full) */}
+            {/* Modal Container */}
             <div className="relative w-full h-full max-w-6xl sm:h-[90dvh] sm:rounded-2xl border-slate-200 sm:border bg-white flex flex-col overflow-hidden shadow-2xl">
 
                 {/* Header Strip */}
                 <div className="flex-none px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between border-b border-slate-200 bg-slate-50 z-10 shadow-sm">
-                    <div className="flex flex-col">
+                    <div className="flex flex-col flex-1 min-w-0 mr-3">
                         <div className="flex items-center gap-2 text-slate-500 mb-1">
                             <Navigation size={14} className="text-[#06b6d4]" />
                             <span className="text-[10px] sm:text-xs uppercase font-bold tracking-wider">Wayfinding Destination</span>
@@ -117,20 +154,52 @@ export const MapModal = ({ isOpen, onClose, targetStall }) => {
 
                     <button
                         onClick={onClose}
-                        className="p-3 bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-900 rounded-full transition-all border border-slate-200 shadow-sm"
+                        className="flex-none p-3 bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-900 rounded-full transition-all border border-slate-200 shadow-sm"
                     >
                         <X size={20} />
                     </button>
                 </div>
 
-                {/* Map View */}
+                {/* Stall Details Card — shown when targeting a specific stall */}
+                {targetDetails && (
+                    <div className="flex-none px-4 py-3 sm:px-6 sm:py-3 border-b border-slate-100 bg-white">
+                        <div className="flex items-start gap-3">
+                            <div
+                                className="flex-none w-10 h-10 rounded-xl flex items-center justify-center shadow-md mt-0.5"
+                                style={{ backgroundColor: targetTheme ? THEME_COLORS[targetTheme] : '#0ea5e9' }}
+                            >
+                                <MapPin size={18} className="text-white" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-snug">{targetDetails.title}</h3>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                    {targetTheme && (
+                                        <span
+                                            className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full text-white"
+                                            style={{ backgroundColor: THEME_COLORS[targetTheme] }}
+                                        >
+                                            {CATEGORY_LABELS[targetTheme] || targetDetails.category}
+                                        </span>
+                                    )}
+                                    {targetDetails.team && targetDetails.team !== 'Not explicitly mentioned' && (
+                                        <span className="text-[10px] sm:text-xs text-slate-500">
+                                            Team: {targetDetails.team}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Map View — responsive: SVG scales to fit viewport */}
                 <div
                     ref={mapContainerRef}
-                    className="flex-1 bg-[#f8fafc] overflow-auto overscroll-contain cursor-grab active:cursor-grabbing relative"
+                    className="flex-1 bg-[#f8fafc] overflow-auto overscroll-contain relative"
                 >
-                    <div className="w-max min-w-full h-full min-h-[600px] flex items-center justify-center p-4">
+                    <div className="w-full h-full flex items-center justify-center p-2 sm:p-4">
                         <svg
-                            className="w-[1000px] sm:w-[1200px] max-w-none h-auto drop-shadow-md"
+                            className="w-full h-full drop-shadow-md"
                             viewBox="0 0 900 650"
                             preserveAspectRatio="xMidYMid meet"
                         >
@@ -142,6 +211,14 @@ export const MapModal = ({ isOpen, onClose, targetStall }) => {
                                 <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
                                     <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#94a3b8" strokeWidth="1" opacity="0.15" />
                                 </pattern>
+                                {/* Glow filter for target marker */}
+                                <filter id="marker-glow" x="-50%" y="-50%" width="200%" height="200%">
+                                    <feGaussianBlur stdDeviation="4" result="blur" />
+                                    <feMerge>
+                                        <feMergeNode in="blur" />
+                                        <feMergeNode in="SourceGraphic" />
+                                    </feMerge>
+                                </filter>
                             </defs>
                             <rect width="900" height="650" fill="url(#grid)" />
 
@@ -187,20 +264,33 @@ export const MapModal = ({ isOpen, onClose, targetStall }) => {
                                 <text x="-5" y="22" textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="bold" fontFamily="Inter, system-ui, sans-serif">EXIT</text>
                             </g>
 
-                            {/* End Point (Target) */}
-                            <g className="animate-bounce" style={{ transformOrigin: 'center center' }}>
-                                <circle cx={targetPos.x} cy={targetPos.y} r="22" fill="#06b6d4" opacity="0.25" className="animate-ping" />
-                                <path d={`M ${targetPos.x} ${targetPos.y + 4} A 16 16 0 1 0 ${targetPos.x} ${targetPos.y - 28} A 16 16 0 0 0 ${targetPos.x} ${targetPos.y + 4} Z`} fill="#0ea5e9" stroke="#fff" strokeWidth="2" strokeLinejoin="round" />
-                                <circle cx={targetPos.x} cy={targetPos.y - 12} r="6" fill="#fff" />
-                            </g>
-                            <text x={targetPos.x} y={targetPos.y - 35} textAnchor="middle" fontFamily="Inter, system-ui, sans-serif" fontSize="12" fill="#0ea5e9" fontWeight="900" className="drop-shadow-sm">{targetStall}</text>
+                            {/* Target Stall Marker — static pin with glow ring */}
+                            {targetStall && (
+                                <g filter="url(#marker-glow)">
+                                    {/* Outer glow ring */}
+                                    <circle cx={targetPos.x} cy={targetPos.y} r="28" fill="none" stroke="#0ea5e9" strokeWidth="3" opacity="0.4" />
+                                    {/* Inner highlight ring */}
+                                    <circle cx={targetPos.x} cy={targetPos.y} r="20" fill="#0ea5e9" opacity="0.15" />
+                                    {/* Pin body — teardrop shape */}
+                                    <path
+                                        d={`M ${targetPos.x} ${targetPos.y + 4} C ${targetPos.x - 16} ${targetPos.y - 4}, ${targetPos.x - 16} ${targetPos.y - 28}, ${targetPos.x} ${targetPos.y - 32} C ${targetPos.x + 16} ${targetPos.y - 28}, ${targetPos.x + 16} ${targetPos.y - 4}, ${targetPos.x} ${targetPos.y + 4} Z`}
+                                        fill="#0ea5e9"
+                                        stroke="#fff"
+                                        strokeWidth="2"
+                                    />
+                                    {/* Pin inner dot */}
+                                    <circle cx={targetPos.x} cy={targetPos.y - 14} r="5" fill="#fff" />
+                                    {/* Stall label above pin */}
+                                    <text x={targetPos.x} y={targetPos.y - 42} textAnchor="middle" fontFamily="Inter, system-ui, sans-serif" fontSize="13" fill="#0ea5e9" fontWeight="900">{targetStall}</text>
+                                </g>
+                            )}
 
                         </svg>
                     </div>
                 </div>
 
-                {/* Legend (Bottom Bar) */}
-                <div className="flex-none p-3 border-t border-slate-200 bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] overflow-x-auto z-10">
+                {/* Legend (Bottom Bar) — horizontally scrollable on mobile */}
+                <div className="flex-none p-3 border-t border-slate-200 bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] overflow-x-auto whitespace-nowrap z-10">
                     <div className="flex items-center gap-4 min-w-max px-2">
                         <span className="text-[10px] text-slate-500 uppercase font-bold mr-2">Zones:</span>
                         <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#9333ea]"></div><span className="text-[11px] text-slate-700 font-bold">Productivity</span></div>

@@ -65,7 +65,7 @@ const ChatInputBar = ({ input, setInput, onSend, loading, isSpeaking, onStop }) 
         <div className="p-3 sm:p-4 border-t border-white/5">
             <div className="relative group max-w-3xl mx-auto">
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 rounded-full opacity-30 group-hover:opacity-60 blur transition duration-500"></div>
-                <div className="relative flex items-center bg-slate-900/50 backdrop-blur-2xl rounded-full border border-white/10 p-1.5 sm:p-2 shadow-2xl">
+                <div className="relative flex items-center bg-slate-900/70 backdrop-blur-2xl rounded-full border border-white/15 p-1.5 sm:p-2 shadow-2xl">
                     <input
                         type="text"
                         value={input}
@@ -74,7 +74,7 @@ const ChatInputBar = ({ input, setInput, onSend, loading, isSpeaking, onStop }) 
                         disabled={loading || isSpeaking}
                         placeholder="Type a message..."
                         autoFocus
-                        className="flex-1 bg-transparent border-none outline-none placeholder-gray-500 px-3 sm:px-4 font-sans text-base sm:text-lg h-10 sm:h-12 min-w-0 text-white"
+                        className="flex-1 bg-transparent border-none outline-none placeholder-gray-400 px-3 sm:px-4 font-sans text-base sm:text-lg h-10 sm:h-12 min-w-0 text-white"
                     />
                     <div className="pr-0.5 sm:pr-1">
                         {isSpeaking ? (

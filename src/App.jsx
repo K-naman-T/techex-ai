@@ -41,6 +41,7 @@ function AppLayout() {
   // UI State
   const [showSettings, setShowSettings] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const [mapTarget, setMapTarget] = useState(null);
   const [voiceToast, setVoiceToast] = useState(null);
 
@@ -250,16 +251,14 @@ function AppLayout() {
 
       {/* Header */}
       <AppHeader
-        isSpeaking={isSpeaking}
-        onStop={handleStop}
         showSettings={showSettings}
         setShowSettings={setShowSettings}
         ttsProvider="auto"
         setTtsProvider={() => { }}
         sttLanguage={language}
         setSttLanguage={setLanguage}
-        onLogout={logout}
-        onClearHistory={handleClearHistory}
+        showGuide={showGuide}
+        setShowGuide={setShowGuide}
       />
 
       {/* Bottom Control Bar — hidden when chat modal is open */}

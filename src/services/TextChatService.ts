@@ -12,18 +12,18 @@ export class TextChatService {
             ? `You are talking to ${userName}. ${interests.length > 0 ? `They are interested in: ${interests.join(', ')}.` : ''}`
             : '';
 
-        // Dynamic greeting based on language and user name
+        // Dynamic greeting — only on first message (no prior history), not every turn
         const greeting = language === 'hi'
             ? userName
-                ? 'When responding, greet them warmly in Hindi with their name (e.g., "Namaste [Name]! Aapka swagat hai!").'
-                : 'When responding, greet them warmly in Hindi (e.g., "Namaste! Aapka swagat hai!").'
+                ? `On your VERY FIRST reply only (when there is no prior conversation history), greet them warmly in Hindi with their name (e.g., "Namaste ${userName}! TechEx 2026 mein aapka swagat hai!"). For ALL subsequent messages, respond directly WITHOUT any greeting.`
+                : `On your VERY FIRST reply only (when there is no prior conversation history), greet them warmly in Hindi (e.g., "Namaste! TechEx 2026 mein aapka swagat hai!"). For ALL subsequent messages, respond directly WITHOUT any greeting.`
             : language === 'hinglish'
                 ? userName
-                    ? 'When responding, greet them warmly in Hinglish with their name (e.g., "Namaste [Name]! Kaise ho aap?").'
-                    : 'When responding, greet them warmly in Hinglish (e.g., "Namaste! Kaise ho aap?").'
-            : userName
-                ? 'When responding, greet them warmly in English with their name (e.g., "Hello [Name]! Welcome to TechEx 2026! How can I help you?").'
-                : 'When responding, greet them warmly in English (e.g., "Hello! Welcome to TechEx 2026! How can I help you?").';
+                    ? `On your VERY FIRST reply only (when there is no prior conversation history), greet them warmly in Hinglish with their name (e.g., "Namaste ${userName}! Kaise ho aap?"). For ALL subsequent messages, respond directly WITHOUT any greeting.`
+                    : `On your VERY FIRST reply only (when there is no prior conversation history), greet them warmly in Hinglish (e.g., "Namaste! Kaise ho aap?"). For ALL subsequent messages, respond directly WITHOUT any greeting.`
+                : userName
+                    ? `On your VERY FIRST reply only (when there is no prior conversation history), greet them warmly in English with their name (e.g., "Hello ${userName}! Welcome to TechEx 2026!"). For ALL subsequent messages, respond directly WITHOUT any greeting.`
+                    : `On your VERY FIRST reply only (when there is no prior conversation history), greet them warmly in English (e.g., "Hello! Welcome to TechEx 2026!"). For ALL subsequent messages, respond directly WITHOUT any greeting.`;
 
         const langInstruction = language === 'hi'
             ? 'Respond strictly in Hindi with a clear Indian Hindi accent.'
@@ -42,8 +42,6 @@ ${this.config.getEventInfo()?.description || ""}
 
 ${userContext}
 ${greeting}
-
-**STRICT RESPONSE GUIDELINES:**
 
 **STRICT RESPONSE GUIDELINES:**
 1. Punctuation: Use frequent periods and commas for clarity.

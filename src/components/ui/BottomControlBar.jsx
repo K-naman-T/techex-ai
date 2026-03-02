@@ -24,7 +24,7 @@ export const BottomControlBar = ({
       {/* Main Control Capsule */}
       <div className="relative group">
         <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500/40 via-blue-500/40 to-purple-600/40 rounded-full opacity-30 group-hover:opacity-60 blur-md transition duration-500"></div>
-        <div className="relative flex items-center bg-slate-900/40 backdrop-blur-2xl rounded-full border border-white/10 p-1.5 sm:p-2 shadow-[0_8px_32px_rgba(0,0,0,0.15)]">
+        <div className="relative flex items-center bg-slate-900/70 backdrop-blur-2xl rounded-full border border-white/15 p-1.5 sm:p-2 shadow-[0_8px_32px_rgba(0,0,0,0.25)]">
 
 
           {/* Left Controls (Focus Only) */}
@@ -45,7 +45,7 @@ export const BottomControlBar = ({
             onKeyDown={handleKeyDown}
             disabled={loading || isSpeaking}
             placeholder="Ask me anything..."
-            className="flex-1 bg-transparent border-none outline-none placeholder-gray-500 px-2 sm:px-4 font-sans text-base sm:text-lg h-10 sm:h-12 min-w-0 text-white"
+            className="flex-1 bg-transparent border-none outline-none placeholder-gray-400 px-2 sm:px-4 font-sans text-base sm:text-lg h-10 sm:h-12 min-w-0 text-white"
           />
 
           {/* Send / Stop */}

@@ -53,18 +53,20 @@ export class VoiceChatService {
             }`
             : "";
 
-        // Dynamic greeting based on language and user name
-        const greeting = language === "hi"
-            ? userMetadata?.name
-                ? `When you start speaking, greet them warmly in Hindi with their name (e.g., "Namaste [Name]! Aapka swagat hai!").`
-                : `When you start speaking, greet them warmly in Hindi (e.g., "Namaste! Aapka swagat hai!").`
-            : language === "hinglish"
+        // Dynamic greeting — only on FIRST connection, not every message
+        const greeting = isFirstTime
+            ? language === "hi"
                 ? userMetadata?.name
-                    ? `When you start speaking, greet them warmly in Hinglish with their name (e.g., "Namaste [Name]! Kaise ho aap?").`
-                    : `When you start speaking, greet them warmly in Hinglish (e.g., "Namaste! Kaise ho aap?").`
-            : userMetadata?.name
-                ? `When you start speaking, greet them warmly in English with their name (e.g., "Hello [Name]! Welcome to TechEx 2026! How can I help you?").`
-                : `When you start speaking, greet them warmly in English (e.g., "Hello! Welcome to TechEx 2026! How can I help you?").`;
+                    ? `This is your FIRST interaction with this user. Greet them warmly in Hindi with their name (e.g., "Namaste ${userMetadata.name}! TechEx 2026 mein aapka swagat hai!"). After this first greeting, NEVER greet again — just answer their questions directly.`
+                    : `This is your FIRST interaction with this user. Greet them warmly in Hindi (e.g., "Namaste! TechEx 2026 mein aapka swagat hai!"). After this first greeting, NEVER greet again — just answer their questions directly.`
+                : language === "hinglish"
+                    ? userMetadata?.name
+                        ? `This is your FIRST interaction with this user. Greet them warmly in Hinglish with their name (e.g., "Namaste ${userMetadata.name}! Kaise ho aap?"). After this first greeting, NEVER greet again — just answer their questions directly.`
+                        : `This is your FIRST interaction with this user. Greet them warmly in Hinglish (e.g., "Namaste! Kaise ho aap?"). After this first greeting, NEVER greet again — just answer their questions directly.`
+                    : userMetadata?.name
+                        ? `This is your FIRST interaction with this user. Greet them warmly in English with their name (e.g., "Hello ${userMetadata.name}! Welcome to TechEx 2026!"). After this first greeting, NEVER greet again — just answer their questions directly.`
+                        : `This is your FIRST interaction with this user. Greet them warmly in English (e.g., "Hello! Welcome to TechEx 2026!"). After this first greeting, NEVER greet again — just answer their questions directly.`
+            : "Do NOT greet the user. They have already been greeted. Respond directly to their question without any greeting or welcome message.";
 
         const langInstruction =
             language === "hi"

@@ -1,5 +1,6 @@
-import { Settings, LogOut, Trash2 } from 'lucide-react';
+import { Settings, Info } from 'lucide-react';
 import { SettingsModal } from './SettingsModal';
+import { InfoGuideModal } from './InfoGuideModal';
 
 export const AppHeader = ({
     showSettings,
@@ -8,8 +9,8 @@ export const AppHeader = ({
     setTtsProvider,
     sttLanguage,
     setSttLanguage,
-    onLogout,
-    onClearHistory
+    showGuide,
+    setShowGuide,
 }) => {
     return (
         <div className="absolute top-0 left-0 w-full p-8 flex justify-between items-start pointer-events-none z-50">
@@ -26,14 +27,13 @@ export const AppHeader = ({
 
             {/* Controls */}
             <div className="pointer-events-auto flex gap-3 relative">
-                {/* Clear History Button */}
-                <button
-                    onClick={onClearHistory}
-                    className="h-10 w-10 rounded-full border border-white/10 bg-slate-900/20 text-slate-700 hover:text-red-600 hover:bg-red-500/10 flex items-center justify-center backdrop-blur-md transition-all"
-                    title="Clear History"
-                >
 
-                    <Trash2 size={18} />
+                {/* Info/Guide Button */}
+                <button
+                    onClick={() => setShowGuide(!showGuide)}
+                    className={`h-10 w-10 rounded-full border flex items-center justify-center backdrop-blur-md transition-all ${showGuide ? 'bg-white/40 border-white/60 text-indigo-600' : 'bg-slate-900/20 border-white/10 text-slate-700 hover:text-indigo-600 hover:bg-white/20'}`}
+                >
+                    <Info size={20} />
                 </button>
 
                 {/* Settings Button */}
@@ -55,14 +55,11 @@ export const AppHeader = ({
                     setSttLanguage={setSttLanguage}
                 />
 
-                {/* Logout Button */}
-                <button
-                    onClick={onLogout}
-                    title="Sign Out"
-                    className="h-10 w-10 rounded-full border flex items-center justify-center backdrop-blur-md transition-all bg-slate-900/20 border-white/10 text-slate-700 hover:text-red-600 hover:bg-red-500/10 hover:border-red-500/30"
-                >
-                    <LogOut size={18} />
-                </button>
+                {/* Info Guide Modal */}
+                <InfoGuideModal
+                    isOpen={showGuide}
+                    onClose={() => setShowGuide(false)}
+                />
 
             </div>
         </div>
