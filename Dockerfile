@@ -29,6 +29,7 @@ RUN bun install --production --frozen-lockfile
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/server.ts ./
 COPY --from=build /app/src/lib ./src/lib
+COPY --from=build /app/src/services ./src/services
 
 # Copy Knowledge Base data
 COPY data ./data
