@@ -3,7 +3,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { TextChatService } from "./src/services/TextChatService";
 import { VoiceChatService } from "./src/services/VoiceChatService";
-import { FastVoiceService } from "./src/services/FastVoiceService";
 
 const DB_PATH = path.join(process.cwd(), "data", "db.json");
 
@@ -35,7 +34,6 @@ const initKnowledgeBase = async () => {
 
     console.log(`[INIT] Knowledge base loaded. ${projects.length} projects cached.`);
     voiceChatService.setProjectsData(projectsArray);
-    fastVoiceService.setProjectsData(projectsArray);
   } catch (error) {
     console.error("[INIT] Failed to load knowledge base:", error);
   }
@@ -56,13 +54,6 @@ export type WSContext = {
   };
   /** Counter for auto-reconnect attempts */
   reconnectAttempts?: number;
-  /** Context for FastVoiceService STT pipeline */
-  fastVoiceCtx?: {
-    writeAudio: (chunk: Buffer) => void;
-    close: () => void;
-  };
-  /** Conversation history for FastVoiceService */
-  fastVoiceHistory?: any[];
 };
 
 // --- Service Initialization ---
@@ -73,7 +64,6 @@ const textChatService = new TextChatService(apiKeyManager, {
 });
 
 const voiceChatService = new VoiceChatService(apiKeyManager);
-const fastVoiceService = new FastVoiceService(apiKeyManager);
 
 // Start server
 const server = serve<WSContext>({
@@ -141,22 +131,13 @@ const server = serve<WSContext>({
 
         switch (msg.type) {
           case "start_gemini_live":
-            if (msg.mode === "pipeline") {
-              await fastVoiceService.initSession(
-                ws,
-                { getProjectsContext: () => projectsContext, getEventInfo: () => eventInfo },
-                msg.language,
-                msg.userMetadata
-              );
-            } else {
-              await voiceChatService.initSession(
-                ws,
-                { getProjectsContext: () => projectsContext, getEventInfo: () => eventInfo },
-                msg.language,
-                msg.userMetadata,
-                msg.isFirstTime
-              );
-            }
+            await voiceChatService.initSession(
+              ws,
+              { getProjectsContext: () => projectsContext, getEventInfo: () => eventInfo },
+              msg.language,
+              msg.userMetadata,
+              msg.isFirstTime
+            );
             break;
 
           case "gemini_audio_in":
@@ -171,13 +152,6 @@ const server = serve<WSContext>({
                 });
               } catch (e: any) {
                 console.error("[Voice API] sendRealtimeInput error:", e.message || e);
-              }
-            } else if (ctx.fastVoiceCtx) {
-              try {
-                const buf = Buffer.from(msg.data, "base64");
-                ctx.fastVoiceCtx.writeAudio(buf);
-              } catch (e) {
-                console.error("[Voice API] FastVoice setup error:", e);
               }
             }
             break;
@@ -199,10 +173,6 @@ const server = serve<WSContext>({
               } catch (e: any) {
                 console.error("[Voice API] activityEnd error:", e.message || e);
               }
-            } else if (ctx.fastVoiceCtx) {
-              try {
-                ctx.fastVoiceCtx.close();
-              } catch (e) { }
             }
             break;
 
@@ -210,10 +180,6 @@ const server = serve<WSContext>({
             if (ctx.geminiLiveSession) {
               try { ctx.geminiLiveSession.close(); } catch (e) { }
               ctx.geminiLiveSession = undefined;
-            }
-            if (ctx.fastVoiceCtx) {
-              try { ctx.fastVoiceCtx.close(); } catch (e) { }
-              ctx.fastVoiceCtx = undefined;
             }
             ws.send(JSON.stringify({ type: "gemini_live_stopped" }));
             break;
@@ -232,9 +198,6 @@ const server = serve<WSContext>({
       const ctx = ws.data as any;
       if (ctx.geminiLiveSession) {
         try { ctx.geminiLiveSession.close(); } catch (e) { }
-      }
-      if (ctx.fastVoiceCtx) {
-        try { ctx.fastVoiceCtx.close(); } catch (e) { }
       }
     }
   }
