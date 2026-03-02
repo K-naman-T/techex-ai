@@ -13,8 +13,10 @@ export class TextChatService {
             : '';
 
         const langInstruction = language === 'hi'
-            ? 'Respond strictly in Hindi written in English script (Hinglish).'
-            : 'Respond strictly in English.';
+            ? 'Respond strictly in Hindi with a clear Indian Hindi accent.'
+            : language === 'hinglish'
+                ? 'Respond strictly in Hinglish (Hindi written in English script) with a natural Indian accent for both Hindi and English words.'
+                : 'Respond strictly in English with an Indian English accent. Use Indian pronunciation and intonation.';
 
         return `
 **Knowledge Base:**
@@ -28,7 +30,7 @@ ${userContext}
 
 **STRICT RESPONSE GUIDELINES:**
 1. Punctuation: Use frequent periods and commas for clarity.
-2. Brevity: Max 2-3 sentences.
+2. Brevity: Keep replies to 2-3 sentences for quick answers. For detailed explanations, use 4-5 sentences max. For complex topics, after 4-5 sentences, suggest: "For even more details, you can also try the voice assistant!"
 3. Navigation: If asked for location, append [SHOW_MAP: <StallNumber>].
 4. NO MARKDOWN: Respond in plain text only. Do not use bold, italics, or hashtags.
 ${langInstruction}

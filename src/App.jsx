@@ -45,9 +45,7 @@ function AppLayout() {
   const [voiceToast, setVoiceToast] = useState(null);
 
   // Hooks
-  const [voiceMode, setVoiceMode] = useState(() => {
-    return localStorage.getItem('techex_voicemode') || 'native';
-  });
+  // No longer using voiceMode state
 
   const {
     isVoiceModeActive,
@@ -67,7 +65,7 @@ function AppLayout() {
     warmup
   } = useWSVoice({
     onShowMap: (stallId) => { setMapTarget(stallId); setShowMap(true); },
-    voiceMode
+    voiceMode: 'native'
   });
 
 
@@ -260,11 +258,6 @@ function AppLayout() {
         setTtsProvider={() => { }}
         sttLanguage={language}
         setSttLanguage={setLanguage}
-        voiceMode={voiceMode}
-        setVoiceMode={(mode) => {
-          setVoiceMode(mode);
-          localStorage.setItem('techex_voicemode', mode);
-        }}
         onLogout={logout}
         onClearHistory={handleClearHistory}
       />

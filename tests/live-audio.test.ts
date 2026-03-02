@@ -5,7 +5,7 @@ import * as path from "path";
 
 describe("Gemini Live Audio Round-Trip", () => {
     test("Should connect, send PCM audio (manual turns), and receive audio response", async () => {
-        const apiKey = process.env.GEMINI_KEY_3 || process.env.GEMINI_KEY_1;
+        const apiKey = process.env.key3 || process.env.key2 || process.env.key1;
         expect(apiKey).toBeTruthy();
 
         // Read the test WAV file and strip the 44-byte header to get raw PCM

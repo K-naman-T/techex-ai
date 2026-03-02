@@ -28,10 +28,8 @@ const initKnowledgeBase = async () => {
     eventInfo = db.events[0];
     const projects = db.projects || [];
 
-    // Latency Optimization: Compress knowledge base string structure to minimize Input Tokens
-    projectsContext = projects.map((p: any) =>
-      `[Stall ${p.stall_number}]${p.title}|Cat:${p.category}|Desc:${(p.description || "").substring(0, 150)}`
-    ).join(";");
+    // Full knowledge base as JSON string for all services
+    projectsContext = JSON.stringify(projects, null, 0);
 
     projectsArray = projects;
 

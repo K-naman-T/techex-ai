@@ -19,11 +19,8 @@ export class VoiceChatService {
 
     public setProjectsData(projects: any[]) {
         this.projectsData = projects;
-        // Compact KB: stall number + title + category (~1K tokens for 44 stalls)
-        // This goes directly in the system instruction to avoid double-inference from tool calls
-        this.compactKB = projects.map((p: any) =>
-            `${p.stall_number}:${p.title}(${p.category || 'General'})`
-        ).join('|');
+        // Full knowledge base as JSON for comprehensive context in system instruction
+        this.compactKB = JSON.stringify(projects, null, 0);
     }
 
     public async initSession(
@@ -58,19 +55,21 @@ export class VoiceChatService {
 
         const langInstruction =
             language === "hi"
-                ? "Speak strictly in Hindi. Your output must be localized for spoken Hindi."
+                ? "Speak strictly in Hindi with a clear Indian Hindi accent. Your output must be localized for spoken Hindi."
                 : language === "hinglish"
-                    ? "Speak strictly in Hinglish (Hindi written in English/Latin script). Example: 'Main aapki kaise madad kar sakti hoon?'"
-                    : "Speak strictly in English.";
+                    ? "Speak strictly in Hinglish (Hindi written in English/Latin script) with a natural Indian accent for both Hindi and English words. Example: 'Main aapki kaise madad kar sakti hoon?'"
+                    : "Speak strictly in English with an Indian English accent. Use Indian pronunciation and intonation.";
 
-        // Compact inline KB in system instruction — avoids tool call double-inference latency
+        // Full inline KB in system instruction — provides complete project details for comprehensive answers
         const systemInstruction = `You are a helpful and friendly FEMALE AI Assistant for ${config.getEventInfo()?.name || "TechEx"}. 
 You MUST act and speak like a woman (use feminine grammar in Hindi/Hinglish, e.g., 'karti hoon' instead of 'karta hoon').
 ${userContext}
-Rules: Keep replies to 1-2 short spoken sentences. 
-You know ALL the stalls at the exhibition. Here they are (format: StallNumber:Title(Category)):
+Rules: 
+1. Keep replies to 2-3 short spoken sentences for quick answers. For detailed explanations, use 4-5 sentences max.
+2. For complex topics, after 4-5 sentences, suggest: "For more details, you can also use the text chat!"
+3. You know ALL the stalls at the exhibition. Here is the complete knowledge base with full details:
 ${this.compactKB}
-Answer questions about stalls directly from this list. If a user asks about a topic, find matching stalls by title or category.
+Answer questions about stalls directly from this knowledge base. If a user asks about a topic, find matching stalls by title, category, or description.
 Only use show_map tool when the user explicitly asks for directions or wants to see a stall on the map.
 For general conversation (greetings, thank you, how are you, etc.), just respond naturally — do NOT look up stalls.
 ${langInstruction}`;
