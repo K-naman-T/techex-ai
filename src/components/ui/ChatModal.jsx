@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { MapPin, X, Send, Sparkles, Square } from 'lucide-react';
+import { MapPin, X, Send, Sparkles, Square, Trash2 } from 'lucide-react';
 
 // ============= MESSAGE BUBBLE =============
 const MessageBubble = ({ message, onMapClick }) => {
@@ -14,7 +14,7 @@ const MessageBubble = ({ message, onMapClick }) => {
           max-w-[85%] sm:max-w-[70%] p-4 rounded-3xl text-sm sm:text-base leading-relaxed font-sans shadow-lg backdrop-blur-md border
           ${isUser
                         ? 'bg-black/60 border-cyan-500/30 text-white rounded-br-sm'
-                        : 'bg-white/10 border-white/10 text-gray-100 rounded-bl-sm'
+                        : 'bg-slate-800/90 border-slate-700/50 text-gray-100 rounded-bl-sm'
                     }
         `}
             >
@@ -118,6 +118,7 @@ export const ChatModal = ({
     onStop,
     isSpeaking,
     onMapClick,
+    onClearHistory,
 }) => {
     const bottomRef = useRef(null);
 
@@ -149,12 +150,23 @@ export const ChatModal = ({
                         <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
                         <span className="text-white/60 font-mono text-xs uppercase tracking-widest">Chat</span>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2.5 hover:bg-white/10 border border-white/10 rounded-full text-white/60 hover:text-white backdrop-blur-md transition-all"
-                    >
-                        <X size={18} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {onClearHistory && filteredMessages.length > 0 && (
+                            <button
+                                onClick={onClearHistory}
+                                className="p-2.5 hover:bg-red-500/20 border border-white/10 rounded-full text-white/40 hover:text-red-400 backdrop-blur-md transition-all"
+                                title="Clear chat history"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        )}
+                        <button
+                            onClick={onClose}
+                            className="p-2.5 hover:bg-white/10 border border-white/10 rounded-full text-white/60 hover:text-white backdrop-blur-md transition-all"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Messages (scrollable) */}

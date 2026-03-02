@@ -26,12 +26,15 @@ export class TextChatService {
                     : `On your VERY FIRST reply only (when there is no prior conversation history), greet them warmly in English (e.g., "Hello! Welcome to TechEx 2026!"). For ALL subsequent messages, respond directly WITHOUT any greeting.`;
 
         const langInstruction = language === 'hi'
-            ? 'Respond strictly in Hindi with a clear Indian Hindi accent.'
+            ? `**[LANGUAGE: HINDI \u2014 MANDATORY]**\nYou MUST respond ONLY in Hindi. Do NOT use English at all. If you must use an English technical term (like \"AI\", \"stall\", \"robotics\"), wrap it naturally in Hindi sentences.\nEvery single response MUST be in Hindi. This is non-negotiable.`
             : language === 'hinglish'
-                ? 'Respond strictly in Hinglish (Hindi written in English script) with a natural Indian accent for both Hindi and English words.'
-                : 'Respond strictly in English with an Indian English accent. Use Indian pronunciation and intonation.';
+                ? `**[LANGUAGE: HINGLISH \u2014 MANDATORY]**\nYou MUST respond ONLY in Hinglish (Hindi words written in English/Latin script, mixed naturally with English). Do NOT respond in pure English or pure Hindi (Devanagari). Use a natural mix that an urban Indian would use.\nExamples:\n- \"Main aapki kaise help kar sakti hoon?\"\n- \"Yeh project bahut interesting hai, isme machine learning use hota hai quality check ke liye.\"\nEvery single response MUST be in Hinglish. This is non-negotiable.`
+                : `**[LANGUAGE: ENGLISH \u2014 MANDATORY]**\nYou MUST respond ONLY in English. Use natural Indian English expressions.\nEvery single response MUST be in English. This is non-negotiable.`;
 
-        return `
+        const langReminder = language === 'hi' ? 'Respond ONLY in Hindi.' : language === 'hinglish' ? 'Respond ONLY in Hinglish.' : 'Respond ONLY in English.';
+
+        return `${langInstruction}
+
 **Knowledge Base:**
 ${this.config.getProjectsContext()}
 
@@ -48,7 +51,8 @@ ${greeting}
 2. Brevity: Keep replies to 2-3 sentences for quick answers. For detailed explanations, use 4-5 sentences max. For complex topics, after 4-5 sentences, suggest: "For even more details, you can also try the voice assistant!"
 3. Navigation: If asked for location, append [SHOW_MAP: <StallNumber>].
 4. NO MARKDOWN: Respond in plain text only. Do not use bold, italics, or hashtags.
-${langInstruction}
+
+REMINDER: ${langReminder}
 `;
     }
 

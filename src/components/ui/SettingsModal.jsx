@@ -34,6 +34,15 @@ export const SettingsModal = ({
             setTtsProvider(localProvider);
             setSttLanguage(localLanguage);
 
+            // Persist language to localStorage so it survives page refresh
+            try {
+                const userData = JSON.parse(localStorage.getItem('techex_user') || '{}');
+                userData.language = localLanguage;
+                localStorage.setItem('techex_user', JSON.stringify(userData));
+            } catch (storageErr) {
+                console.warn('[SettingsModal] Failed to persist language to localStorage:', storageErr);
+            }
+
             // Call optional save callback (for backend sync)
             if (onSave) {
                 await onSave({ voice_provider: localProvider, stt_language: localLanguage });

@@ -88,6 +88,19 @@ function AppLayout() {
     localStorage.setItem('techex_history', JSON.stringify(messages));
   }, [messages]);
 
+  // Sync language to localStorage whenever it changes (covers Settings changes too)
+  useEffect(() => {
+    try {
+      const userData = JSON.parse(localStorage.getItem('techex_user') || '{}');
+      if (userData.language !== language) {
+        userData.language = language;
+        localStorage.setItem('techex_user', JSON.stringify(userData));
+      }
+    } catch (e) {
+      console.warn('[App] Failed to sync language to localStorage:', e);
+    }
+  }, [language]);
+
 
 
   // Handle Chat Response Stream (Text Mode)
@@ -247,6 +260,7 @@ function AppLayout() {
         onStop={handleStop}
         isSpeaking={isSpeaking}
         onMapClick={(stall) => { setMapTarget(stall); setShowMap(true); }}
+        onClearHistory={handleClearHistory}
       />
 
       {/* Header */}

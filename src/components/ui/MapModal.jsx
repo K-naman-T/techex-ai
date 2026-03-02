@@ -211,14 +211,6 @@ export const MapModal = ({ isOpen, onClose, targetStall }) => {
                                 <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
                                     <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#94a3b8" strokeWidth="1" opacity="0.15" />
                                 </pattern>
-                                {/* Glow filter for target marker */}
-                                <filter id="marker-glow" x="-50%" y="-50%" width="200%" height="200%">
-                                    <feGaussianBlur stdDeviation="4" result="blur" />
-                                    <feMerge>
-                                        <feMergeNode in="blur" />
-                                        <feMergeNode in="SourceGraphic" />
-                                    </feMerge>
-                                </filter>
                             </defs>
                             <rect width="900" height="650" fill="url(#grid)" />
 
@@ -264,24 +256,29 @@ export const MapModal = ({ isOpen, onClose, targetStall }) => {
                                 <text x="-5" y="22" textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="bold" fontFamily="Inter, system-ui, sans-serif">EXIT</text>
                             </g>
 
-                            {/* Target Stall Marker — static pin with glow ring */}
+                            {/* Target Stall Marker — classic black teardrop pin with slow bounce */}
                             {targetStall && (
-                                <g filter="url(#marker-glow)">
-                                    {/* Outer glow ring */}
-                                    <circle cx={targetPos.x} cy={targetPos.y} r="28" fill="none" stroke="#0ea5e9" strokeWidth="3" opacity="0.4" />
-                                    {/* Inner highlight ring */}
-                                    <circle cx={targetPos.x} cy={targetPos.y} r="20" fill="#0ea5e9" opacity="0.15" />
-                                    {/* Pin body — teardrop shape */}
-                                    <path
-                                        d={`M ${targetPos.x} ${targetPos.y + 4} C ${targetPos.x - 16} ${targetPos.y - 4}, ${targetPos.x - 16} ${targetPos.y - 28}, ${targetPos.x} ${targetPos.y - 32} C ${targetPos.x + 16} ${targetPos.y - 28}, ${targetPos.x + 16} ${targetPos.y - 4}, ${targetPos.x} ${targetPos.y + 4} Z`}
-                                        fill="#0ea5e9"
-                                        stroke="#fff"
-                                        strokeWidth="2"
-                                    />
-                                    {/* Pin inner dot */}
-                                    <circle cx={targetPos.x} cy={targetPos.y - 14} r="5" fill="#fff" />
-                                    {/* Stall label above pin */}
-                                    <text x={targetPos.x} y={targetPos.y - 42} textAnchor="middle" fontFamily="Inter, system-ui, sans-serif" fontSize="13" fill="#0ea5e9" fontWeight="900">{targetStall}</text>
+                                <g>
+                                    {/* Drop shadow — pulses with bounce */}
+                                    <ellipse cx={targetPos.x} cy={targetPos.y + 6} rx="8" ry="3" fill="#000" opacity="0.2">
+                                        <animate attributeName="opacity" values="0.2;0.12;0.2" dur="2s" repeatCount="indefinite" />
+                                        <animate attributeName="rx" values="8;6;8" dur="2s" repeatCount="indefinite" />
+                                    </ellipse>
+                                    {/* Bouncing pin group */}
+                                    <g>
+                                        <animateTransform attributeName="transform" type="translate" values={`0,0; 0,-6; 0,0`} dur="2s" repeatCount="indefinite" calcMode="spline" keySplines="0.33 0 0.67 1; 0.33 0 0.67 1" />
+                                        {/* Teardrop pin body */}
+                                        <path
+                                            d={`M ${targetPos.x} ${targetPos.y + 4} C ${targetPos.x - 14} ${targetPos.y - 6}, ${targetPos.x - 14} ${targetPos.y - 28}, ${targetPos.x} ${targetPos.y - 34} C ${targetPos.x + 14} ${targetPos.y - 28}, ${targetPos.x + 14} ${targetPos.y - 6}, ${targetPos.x} ${targetPos.y + 4} Z`}
+                                            fill="#1e1e1e"
+                                            stroke="#fff"
+                                            strokeWidth="2"
+                                        />
+                                        {/* Inner white dot */}
+                                        <circle cx={targetPos.x} cy={targetPos.y - 16} r="5" fill="#fff" />
+                                        {/* Stall label above pin */}
+                                        <text x={targetPos.x} y={targetPos.y - 44} textAnchor="middle" fontFamily="Inter, system-ui, sans-serif" fontSize="13" fill="#1e1e1e" fontWeight="900">{targetStall}</text>
+                                    </g>
                                 </g>
                             )}
 
