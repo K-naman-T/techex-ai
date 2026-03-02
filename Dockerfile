@@ -2,11 +2,13 @@
 FROM oven/bun:1.1.38 AS build
 WORKDIR /app
 
-# Only frontend env vars needed at build time
-ARG VITE_SUPABASE_URL
-ARG VITE_SUPABASE_ANON_KEY
-ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
-ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+# Install dependencies first (layer caching)
+COPY package.json bun.lock* ./
+RUN bun install --frozen-lockfile
+
+# Copy source and build frontend
+COPY . .
+RUN bun run build
 
 # Install dependencies first (layer caching)
 COPY package.json bun.lock* ./

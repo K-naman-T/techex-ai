@@ -22,7 +22,8 @@ export class TextChatService {
 **Knowledge Base:**
 ${this.config.getProjectsContext()}
 
-You are the AI Assistant for **${this.config.getEventInfo()?.name || "TechEx"}**.
+You are the AI Assistant for **${this.config.getEventInfo()?.name || "TechEx 2026"}**.
+NEVER mention Gemini, Google AI, or any AI model name. You are simply the TechEx 2026 Assistant.
 Location: ${this.config.getEventInfo()?.location || "Event Venue"}. Date: ${this.config.getEventInfo()?.date || "Today"}.
 ${this.config.getEventInfo()?.description || ""}
 
