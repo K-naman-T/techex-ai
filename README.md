@@ -1,49 +1,67 @@
-# TechEx AI 2026 - Voice-Enabled Interactive Assistant
+# TechEx AI
 
-TechEx AI is a cutting-edge, voice-first interactive assistant designed for the 2026 Technology Exhibition. It combines high-performance 3D visuals, real-time RAG (Retrieval Augmented Generation), and seamless multi-language speech synthesis.
+TechEx AI is a React + Bun application for TechEx 2026 that supports:
+- text chat over SSE (`/api/chat`)
+- real-time voice chat over WebSocket (`/api/ws`)
+- map trigger responses for stall navigation (`[SHOW_MAP: ...]` / `show_map`)
 
-## 🏗️ System Architecture
+It uses a local JSON knowledge base at `data/db.json` (event + 35 projects/stalls).
 
-The following diagram illustrates the complete end-to-end flow of the application. This was generated using the Mermaid CLI library.
+## Tech stack
 
-![System Architecture](./assets/architecture.png)
+- Frontend: React 19 + Vite 7
+- Backend: Bun server (`server.ts`)
+- AI SDK: `@google/genai`
+- Voice: Gemini Live native audio model
 
-### Key Components
+## Project structure (key files)
 
-- **Frontend**: Built with React and Three.js for a premium 3D experience. Features a ReadyPlayerMe avatar with dynamic lip-sync and animations.
-- **RAG Implementation**: Uses a custom `LocalVectorStore` to index exhibition-specific documents, providing Gemini with factual context to reduce hallucinations.
-- **Speech Stack**:
-    - **STT**: Universal streaming recognition for seamless interaction.
-    - **TTS**: High-fidelity voices from ElevenLabs (English) and Sarvam AI (Hindi) for a natural conversational experience.
-- **Database**: PostgreSQL manages user sessions, conversation history, and technical configurations.
+- `src/` - frontend app, hooks, UI, context
+- `server.ts` - Bun HTTP + WebSocket API server
+- `src/services/TextChatService.ts` - SSE text chat pipeline
+- `src/services/VoiceChatService.ts` - Gemini Live voice pipeline
+- `src/lib/apiKeyManager.ts` - Gemini API key rotation
+- `data/db.json` - event + stall knowledge base
 
----
+## Local setup
 
-## 🛠️ Setup & Running
-
-1. **Install Dependencies**:
+1. Install dependencies:
    ```bash
    bun install
    ```
 
-2. **Environment Variables**:
-   Create a `.env` file with the following:
-   - `VITE_GEMINI_API_KEY`: Google Gemini Pro Key
-   - `VITE_SARVAM_API_KEY`: Sarvam AI Hindi TTS Key
-   - `VITE_ELEVENLABS_API_KEY`: ElevenLabs English Voice Key
-   - `DATABASE_URL`: PostgreSQL Connection String
+2. Configure environment variables in `.env`:
+   - `key1`, `key2`, `key3` (or more): Gemini API keys (server rotates keys that start with `key`)
+   - `PORT` (optional): API server port (default: `3005`)
+   - `GEMINI_API_KEY` (optional): used by some tests/scripts
 
-3. **Run Development Server**:
-   ```bash
-   bun run dev
-   ```
+## Run locally
 
----
+Run frontend and backend in separate terminals:
 
-## 🚀 Deployment
+```bash
+# terminal 1 (Vite frontend on :3000)
+bun run dev
+```
 
-The project is optimized for deployment on **Railway** or **Cloud Run**.
-- Uses a multi-stage `Dockerfile` for efficient builds.
-- Automatically initializes the PostgreSQL schema on first run.
-- Zero-credentials persistence (handles keys via environment variables).
-- **Public Access**: Use `npx ngrok http 3000` for secure HTTPS tunneling to local development.
+```bash
+# terminal 2 (Bun API server on :3005 by default)
+bun run start
+```
+
+Vite proxies `/api` to `http://127.0.0.1:3005`.
+
+## Build and test
+
+```bash
+bun run build
+bun test
+```
+
+Note: some end-to-end voice tests require API keys and a reachable Gemini service.
+
+## Deployment
+
+This repo includes:
+- `Dockerfile` (multi-stage Bun build)
+- `render.yaml` (Render service config)
