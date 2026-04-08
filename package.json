@@ -6,7 +6,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "bun server.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "diagram:system": "mmdc -p mermaid-puppeteer-config.json -i assets/system-design.mmd -o assets/system-design.svg"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",

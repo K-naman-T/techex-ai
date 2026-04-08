@@ -1,8 +1,11 @@
 import os
 import json
+from pathlib import Path
 from pptx import Presentation
 
 BASE_DIR = r"C:\Users\naman\Downloads\OneDrive_2026-02-27\Checked Backdrops by Backdrop Team"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+OUTPUT_PATH = REPO_ROOT / "data" / "extracted_projects.json"
 
 def extract_text_from_pptx(file_path):
     prs = Presentation(file_path)
@@ -54,10 +57,11 @@ def main():
         except Exception as e:
             print(f"Error processing {filename}: {e}")
 
-    with open("extracted_projects.json", "w", encoding="utf-8") as f:
+    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
     
-    print(f"Extraction complete. Saved to extracted_projects.json")
+    print(f"Extraction complete. Saved to {OUTPUT_PATH}")
 
 if __name__ == "__main__":
     main()

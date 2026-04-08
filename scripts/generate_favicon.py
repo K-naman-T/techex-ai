@@ -1,11 +1,12 @@
+from pathlib import Path
 from PIL import Image
-import os
 
-LOGO_PATH = r"c:\Users\naman\techex-ai-local\public\assets\techex26-logo.png"
-FAVICON_PATH = r"c:\Users\naman\techex-ai-local\public\favicon.png"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+LOGO_PATH = REPO_ROOT / "public" / "assets" / "techex26-logo.png"
+FAVICON_PATH = REPO_ROOT / "public" / "favicon.png"
 
 def create_favicon():
-    if not os.path.exists(LOGO_PATH):
+    if not LOGO_PATH.exists():
         print(f"Error: Logo not found at {LOGO_PATH}")
         return
 

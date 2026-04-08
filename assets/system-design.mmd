@@ -1,0 +1,37 @@
+%% TechEx AI system design diagram
+flowchart LR
+  subgraph Client[Browser / React App]
+    UI["Styled UI\n+ 3D Orb"]
+    Hooks["Voice + SSE Hooks"]
+    MapModal["Map & Guide Modals"]
+  end
+
+  subgraph Server[Bun API Server]
+    TextSvc["TextChatService\nSSE /api/chat"]
+    VoiceSvc["VoiceChatService\nWS /api/ws"]
+    KeyMgr["ApiKeyManager\nAPI key rotation"]
+    KB[("data/db.json\nKnowledge Base")]
+  end
+
+  subgraph Gemini[Google Gemini APIs]
+    TextModel[gemini-2.5-flash]
+    LiveModel["gemini-2.5-flash-\nnative-audio"]
+  end
+
+  UI -->|Chat UI actions| Hooks
+  Hooks -->|Text requests<br/>JSON + history| TextSvc
+  Hooks -->|PCM audio over WS| VoiceSvc
+  VoiceSvc -->|Audio responses + map triggers| Hooks
+  TextSvc -->|Show map events| MapModal
+
+  TextSvc --> KB
+  VoiceSvc --> KB
+  KeyMgr --> TextSvc
+  KeyMgr --> VoiceSvc
+
+  TextSvc -->|Rotating Gemini keys| TextModel
+  VoiceSvc -->|Rotating Gemini keys| LiveModel
+  Hooks <-->|SSE deltas| TextSvc
+  Hooks <-->|Voice state events| VoiceSvc
+
+  KB -. preload .-> Server

@@ -60,6 +60,20 @@ bun test
 
 Note: some end-to-end voice tests require API keys and a reachable Gemini service.
 
+## System design
+
+Generate/update the diagram with:
+
+```bash
+npm run diagram:system
+```
+
+Rendered view:
+
+![TechEx AI system design](assets/system-design.svg)
+
+Static PNG copy (useful for docs/decks): `assets/system-design.png`
+
 ## Deployment
 
 This repo includes:

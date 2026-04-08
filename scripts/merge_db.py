@@ -1,7 +1,9 @@
 import json
+from pathlib import Path
 
-DB_PATH = "data/db.json"
-EXTRACTED_PATH = "extracted_projects.json"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DB_PATH = REPO_ROOT / "data" / "db.json"
+EXTRACTED_PATH = REPO_ROOT / "data" / "extracted_projects.json"
 
 def merge_data():
     with open(DB_PATH, "r", encoding="utf-8") as f:
